@@ -1,3 +1,5 @@
+
+export * from "./newElement";
 import { toIterable } from "@excalidraw/common";
 
 import { isInvisiblySmallElement } from "./sizeHelpers";

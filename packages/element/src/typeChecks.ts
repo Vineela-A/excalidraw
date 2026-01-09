@@ -1,3 +1,9 @@
+import type { ExcalidrawStickynoteElement } from "./types";
+export const isStickynoteElement = (
+  element: ExcalidrawElement | null,
+): element is ExcalidrawStickynoteElement => {
+  return element != null && element.type === "stickynote";
+};
 import { ROUNDNESS, assertNever } from "@excalidraw/common";
 
 import { pointsEqual } from "@excalidraw/math";
@@ -261,7 +267,8 @@ export const isExcalidrawElement = (
     case "frame":
     case "magicframe":
     case "image":
-    case "selection": {
+    case "selection":
+    case "stickynote": {
       return true;
     }
     default: {

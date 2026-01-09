@@ -9,7 +9,8 @@ import type { Degrees } from "@excalidraw/math";
 import type { Merge } from "./utility-types";
 
 export { tinycolor };
-
+// Default stickynote yellow
+export const COLOR_STICKYNOTE_YELLOW = "#fff9b1";
 // Browser-only cache to avoid memory leaks on server
 const DARK_MODE_COLORS_CACHE: Map<string, string> | null =
   typeof window !== "undefined" ? new Map() : null;

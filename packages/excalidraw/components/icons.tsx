@@ -71,7 +71,14 @@ const modifiedTablerIconProps: Opts = {
 } as const;
 
 // -----------------------------------------------------------------------------
-
+// Stickynote icon (simple sticky note shape)
+export const StickynoteIcon = createIcon(
+  <g>
+    <rect x="4" y="4" width="16" height="16" rx="2" fill="currentColor" stroke="currentColor" strokeWidth="1.5" />
+    <polyline points="14,20 20,20 20,14" fill="none" stroke="#fff" strokeWidth="1.5" />
+  </g>,
+  tablerIconProps,
+);
 // tabler-icons: present
 export const PlusPromoIcon = createIcon(
   <g strokeWidth="1.5">

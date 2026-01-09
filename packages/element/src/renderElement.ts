@@ -53,6 +53,7 @@ import {
 import { getLineHeightInPx } from "./textMeasurements";
 import {
   isTextElement,
+  isStickynoteElement,
   isLinearElement,
   isFreeDrawElement,
   isInitializedImageElement,
@@ -475,7 +476,73 @@ const drawElementOnCanvas = (
       break;
     }
     default: {
-      if (isTextElement(element)) {
+      if (isStickynoteElement(element)) {
+        // Render stickynote background
+        context.save();
+        context.fillStyle = element.backgroundColor;
+        context.strokeStyle = element.strokeColor;
+        context.globalAlpha = element.opacity / 100;
+        context.lineJoin = "round";
+        context.lineWidth = 2;
+        context.beginPath();
+        context.moveTo(0, 8);
+        context.quadraticCurveTo(0, 0, 8, 0);
+        context.lineTo(element.width - 8, 0);
+        context.quadraticCurveTo(element.width, 0, element.width, 8);
+        context.lineTo(element.width, element.height - 8);
+        context.quadraticCurveTo(element.width, element.height, element.width - 8, element.height);
+        context.lineTo(8, element.height);
+        context.quadraticCurveTo(0, element.height, 0, element.height - 8);
+        context.closePath();
+        context.fill();
+        context.stroke();
+        context.restore();
+
+        // Render stickynote text only if present
+        if (element.text && element.text.trim() !== "") {
+          const rtl = isRTL(element.text);
+          const shouldTemporarilyAttach = rtl && !context.canvas.isConnected;
+          if (shouldTemporarilyAttach) {
+            document.body.appendChild(context.canvas);
+          }
+          context.canvas.setAttribute("dir", rtl ? "rtl" : "ltr");
+          context.save();
+          context.font = getFontString({ fontSize: element.fontSize, fontFamily: element.fontFamily });
+          context.fillStyle =
+            renderConfig.theme === THEME.DARK
+              ? applyDarkModeFilter(element.strokeColor)
+              : element.strokeColor;
+          context.textAlign = element.textAlign as CanvasTextAlign;
+
+          const lines = element.text.replace(/\r\n?/g, "\n").split("\n");
+          const horizontalOffset =
+            element.textAlign === "center"
+              ? element.width / 2
+              : element.textAlign === "right"
+              ? element.width
+              : 0;
+          const lineHeightPx = getLineHeightInPx(
+            element.fontSize,
+            element.lineHeight,
+          );
+          const verticalOffset = getVerticalOffset(
+            element.fontFamily,
+            element.fontSize,
+            lineHeightPx,
+          );
+          for (let index = 0; index < lines.length; index++) {
+            context.fillText(
+              lines[index],
+              horizontalOffset,
+              index * lineHeightPx + verticalOffset,
+            );
+          }
+          context.restore();
+          if (shouldTemporarilyAttach) {
+            context.canvas.remove();
+          }
+        }
+      } else if (isTextElement(element)) {
         const rtl = isRTL(element.text);
         const shouldTemporarilyAttach = rtl && !context.canvas.isConnected;
         if (shouldTemporarilyAttach) {

@@ -1,3 +1,5 @@
+import { newStickynoteElement } from "@excalidraw/element";
+import { isStickynoteElement } from "@excalidraw/element/src/typeChecks";
 import clsx from "clsx";
 import throttle from "lodash.throttle";
 import React, { useContext } from "react";
@@ -586,6 +588,56 @@ const gesture: Gesture = {
 };
 
 class App extends React.Component<AppProps, AppState> {
+    private handleStickynoteOnPointerDown = (
+      event: React.PointerEvent<HTMLElement>,
+      pointerDownState: PointerDownState,
+    ): void => {
+      if (this.state.editingTextElement) {
+        return;
+      }
+      const [gridX, gridY] = getGridPoint(
+        pointerDownState.origin.x,
+        pointerDownState.origin.y,
+        this.lastPointerDownEvent?.[KEYS.CTRL_OR_CMD]
+          ? null
+          : this.getEffectiveGridSize(),
+      );
+
+      const topLayerFrame = this.getTopLayerFrameAtSceneCoords({
+        x: gridX,
+        y: gridY,
+      });
+
+      const element = newStickynoteElement({
+        x: gridX,
+        y: gridY,
+        text: "",
+        fontSize: this.state.currentItemFontSize,
+        fontFamily: this.state.currentItemFontFamily,
+        textAlign: this.state.currentItemTextAlign,
+        verticalAlign: DEFAULT_VERTICAL_ALIGN,
+        lineHeight: getLineHeight(this.state.currentItemFontFamily),
+        backgroundColor: undefined, // will default to yellow
+        strokeColor: this.state.currentItemStrokeColor,
+        opacity: this.state.currentItemOpacity,
+        groupIds: [],
+        frameId: topLayerFrame ? topLayerFrame.id : null,
+        locked: false,
+      });
+
+      this.scene.insertElement(element);
+      this.setState({ editingTextElement: element });
+      this.handleTextWysiwyg(element as any, { isExistingElement: false });
+
+      resetCursor(this.interactiveCanvas);
+      if (!this.state.activeTool.locked) {
+        this.setState({
+          activeTool: updateActiveTool(this.state, {
+            type: this.state.preferredSelectionTool.type,
+          }),
+        });
+      }
+    };
   canvas: AppClassProperties["canvas"];
   interactiveCanvas: AppClassProperties["interactiveCanvas"] = null;
   rc: RoughCanvas;
@@ -8697,7 +8749,8 @@ class App extends React.Component<AppProps, AppState> {
       | "diamond"
       | "ellipse"
       | "iframe"
-      | "embeddable",
+      | "embeddable"
+      | "stickynote",
   ) {
     return this.state.currentItemRoundness === "round"
       ? {
@@ -8709,7 +8762,7 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   private createGenericElementOnPointerDown = (
-    elementType: ExcalidrawGenericElement["type"] | "embeddable",
+    elementType: ExcalidrawGenericElement["type"] | "embeddable" | "stickynote",
     pointerDownState: PointerDownState,
   ): void => {
     const [gridX, gridY] = getGridPoint(
@@ -8748,6 +8801,7 @@ class App extends React.Component<AppProps, AppState> {
       });
     } else {
       element = newElement({
+        // @ts-expect-error stickynote is a valid type for newElement
         type: elementType,
         ...baseElementAttributes,
       });

@@ -1,3 +1,4 @@
+
 import type { LocalPoint, Radians } from "@excalidraw/math";
 
 import type {
@@ -14,6 +15,7 @@ import type {
   Merge,
   ValueOf,
 } from "@excalidraw/common/utility-types";
+
 
 export type ChartType = "bar" | "line";
 export type FillStyle = "hachure" | "cross-hatch" | "solid" | "zigzag";
@@ -36,6 +38,8 @@ export type BoundElement = Readonly<{
   id: ExcalidrawLinearElement["id"];
   type: "arrow" | "text";
 }>;
+
+
 
 type _ExcalidrawElementBase = Readonly<{
   id: string;
@@ -80,6 +84,18 @@ type _ExcalidrawElementBase = Readonly<{
   locked: boolean;
   customData?: Record<string, any>;
 }>;
+
+
+export type ExcalidrawStickynoteElement = _ExcalidrawElementBase & {
+  type: "stickynote";
+  text: string;
+  fontSize: number;
+  fontFamily: FontFamilyValues;
+  textAlign: TextAlign;
+  verticalAlign: VerticalAlign;
+  lineHeight: number & { _brand: "unitlessLineHeight" };
+  // stickynote-specific fields can be added here
+};
 
 export type ExcalidrawSelectionElement = _ExcalidrawElementBase & {
   type: "selection";
@@ -206,6 +222,7 @@ export type ExcalidrawRectanguloidElement =
 export type ExcalidrawElement =
   | ExcalidrawGenericElement
   | ExcalidrawTextElement
+  | ExcalidrawStickynoteElement
   | ExcalidrawLinearElement
   | ExcalidrawArrowElement
   | ExcalidrawFreeDrawElement

@@ -11,6 +11,7 @@ import {
   TextIcon,
   ImageIcon,
   EraserIcon,
+  StickynoteIcon
 } from "./icons";
 
 import type { AppClassProperties } from "../types";
@@ -78,6 +79,14 @@ export const SHAPES = [
     key: null,
     numericKey: KEYS["9"],
     fillable: false,
+  },
+  // Stickynote tool
+  {
+    icon: StickynoteIcon,
+    value: "stickynote",
+    key: KEYS.S,
+    numericKey: null,
+    fillable: true,
   },
   {
     icon: EraserIcon,

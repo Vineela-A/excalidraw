@@ -1,3 +1,4 @@
+import { COLOR_STICKYNOTE_YELLOW } from "@excalidraw/common";
 import {
   DEFAULT_ELEMENT_PROPS,
   DEFAULT_FONT_FAMILY,
@@ -48,7 +49,65 @@ import type {
   ExcalidrawArrowElement,
   ExcalidrawElbowArrowElement,
   ExcalidrawLineElement,
+  ExcalidrawStickynoteElement,
 } from "./types";
+
+export const newStickynoteElement = (
+  opts: {
+    text: string;
+    fontSize?: number;
+    fontFamily?: FontFamilyValues;
+    textAlign?: TextAlign;
+    verticalAlign?: VerticalAlign;
+    lineHeight?: number;
+    width?: number;
+    height?: number;
+    x: number;
+    y: number;
+    backgroundColor?: string;
+    strokeColor?: string;
+    opacity?: number;
+    groupIds?: string[];
+    frameId?: string | null;
+    index?: string | null;
+    locked?: boolean;
+    customData?: Record<string, any>;
+  },
+): NonDeleted<ExcalidrawStickynoteElement> => {
+  const fontFamily = opts.fontFamily || DEFAULT_FONT_FAMILY;
+  const fontSize = opts.fontSize || DEFAULT_FONT_SIZE;
+  // Brand lineHeight as unitlessLineHeight
+  const rawLineHeight = opts.lineHeight || getLineHeight(fontFamily);
+  const lineHeight = rawLineHeight as number & { _brand: "unitlessLineHeight" };
+  const text = normalizeText(opts.text);
+  const width = opts.width || 200;
+  const height = opts.height || 200;
+  // Ensure index is FractionalIndex|null
+  const index = opts.index as (string & { _brand: "franctionalIndex" }) | null ?? null;
+  return {
+    ..._newElementBase<ExcalidrawStickynoteElement>("stickynote", {
+      x: opts.x,
+      y: opts.y,
+      width,
+      height,
+      backgroundColor: opts.backgroundColor || COLOR_STICKYNOTE_YELLOW,
+      strokeColor: opts.strokeColor || DEFAULT_ELEMENT_PROPS.strokeColor,
+      opacity: opts.opacity ?? DEFAULT_ELEMENT_PROPS.opacity,
+      groupIds: opts.groupIds || [],
+      frameId: opts.frameId ?? null,
+      index,
+      locked: opts.locked ?? false,
+      customData: opts.customData,
+    }),
+    type: "stickynote",
+    text,
+    fontSize,
+    fontFamily,
+    textAlign: opts.textAlign || DEFAULT_TEXT_ALIGN,
+    verticalAlign: opts.verticalAlign || DEFAULT_VERTICAL_ALIGN,
+    lineHeight,
+  };
+};
 
 export type ElementConstructorOpts = MarkOptional<
   Omit<ExcalidrawGenericElement, "id" | "type" | "isDeleted" | "updated">,

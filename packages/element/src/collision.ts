@@ -381,6 +381,7 @@ export const intersectElementWithLineSegment = (
     case "arrow":
       return intersectLinearOrFreeDrawWithLineSegment(element, line, onlyFirst);
   }
+  return [];
 };
 
 const curveIntersections = (

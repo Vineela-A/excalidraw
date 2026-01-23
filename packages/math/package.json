@@ -61,6 +61,10 @@
     "build:esm": "rimraf dist && node ../../scripts/buildBase.js && yarn gen:types"
   },
   "dependencies": {
-    "@excalidraw/common": "0.18.0"
+    "@excalidraw/common": "workspace:*"
+  }
+  ,
+  "devDependencies": {
+    "rimraf": "^4.0.0"
   }
 }

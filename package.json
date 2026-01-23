@@ -33,7 +33,7 @@
     "pepjs": "0.5.3",
     "prettier": "2.6.2",
     "rewire": "6.0.0",
-    "rimraf": "^5.0.0",
+    "rimraf": "6.1.2",
     "typescript": "5.9.3",
     "vite": "5.0.12",
     "vite-plugin-checker": "0.7.2",
@@ -41,7 +41,8 @@
     "vite-plugin-pwa": "0.21.1",
     "vite-plugin-svgr": "4.2.0",
     "vitest": "3.0.6",
-    "vitest-canvas-mock": "0.3.3"
+    "vitest-canvas-mock": "0.3.3",
+    "esbuild": "0.19.10"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -90,5 +91,8 @@
   },
   "resolutions": {
     "strip-ansi": "6.0.1"
+  },
+  "dependencies": {
+    "tinycolor2": "1.6.0"
   }
 }

@@ -624,6 +624,10 @@ class App extends React.Component<AppProps, AppState> {
         frameId: topLayerFrame ? topLayerFrame.id : null,
         locked: false,
       });
+      // make newly created sticky note a compact note so the user can immediately add text
+      // sizes chosen to match wrapper: 120x120
+      element.width = 120;
+      element.height = 120;
 
       this.scene.insertElement(element);
       this.setState({ editingTextElement: element });
@@ -2244,6 +2248,38 @@ class App extends React.Component<AppProps, AppState> {
                         {showShapeSwitchPanel && (
                           <ConvertElementTypePopup app={this} />
                         )}
+                        {/* Sticky-note tooltip near pointer when a single sticky note is selected */}
+                        {selectedElements.length === 1 &&
+                          isStickynoteElement(firstSelectedElement) &&
+                          this.lastPointerMoveCoords && (
+                            (() => {
+                              const { x: sceneX, y: sceneY } = this.lastPointerMoveCoords!;
+                              const { x: viewportX, y: viewportY } = sceneCoordsToViewportCoords(
+                                { sceneX, sceneY },
+                                this.state,
+                              );
+                              const left = viewportX - this.state.offsetLeft + 12;
+                              const top = viewportY - this.state.offsetTop + 12;
+                              return (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    left: `${left}px`,
+                                    top: `${top}px`,
+                                    background: "rgba(0,0,0,0.85)",
+                                    color: "#fff",
+                                    padding: "6px 8px",
+                                    borderRadius: 6,
+                                    fontSize: 12,
+                                    pointerEvents: "none",
+                                    zIndex: 9999,
+                                  }}
+                                >
+                                  {t("labels.doubleClickToEdit") ?? "Double-click to edit ✏️"}
+                                </div>
+                              );
+                            })()
+                          )}
                       </ExcalidrawActionManagerContext.Provider>
                       {this.renderEmbeddables()}
                     </ExcalidrawElementsContext.Provider>

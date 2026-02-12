@@ -1,9 +1,3 @@
-import type { ExcalidrawStickynoteElement } from "./types";
-export const isStickynoteElement = (
-  element: ExcalidrawElement | null,
-): element is ExcalidrawStickynoteElement => {
-  return element != null && element.type === "stickynote";
-};
 import { ROUNDNESS, assertNever } from "@excalidraw/common";
 
 import { pointsEqual } from "@excalidraw/math";
@@ -35,7 +29,14 @@ import type {
   ExcalidrawLineElement,
   ExcalidrawFlowchartNodeElement,
   ExcalidrawLinearElementSubType,
+  ExcalidrawStickynoteElement
 } from "./types";
+
+export const isStickynoteElement = (
+  element: ExcalidrawElement | null,
+): element is ExcalidrawStickynoteElement => {
+  return element != null && element.type === "stickynote";
+};
 
 export const isInitializedImageElement = (
   element: ExcalidrawElement | null,

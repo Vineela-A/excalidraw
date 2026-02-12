@@ -475,74 +475,77 @@ const drawElementOnCanvas = (
       }
       break;
     }
-    default: {
-      if (isStickynoteElement(element)) {
-        // Render stickynote background
-        context.save();
-        context.fillStyle = element.backgroundColor;
-        context.strokeStyle = element.strokeColor;
-        context.globalAlpha = element.opacity / 100;
-        context.lineJoin = "round";
-        context.lineWidth = 2;
-        context.beginPath();
-        context.moveTo(0, 8);
-        context.quadraticCurveTo(0, 0, 8, 0);
-        context.lineTo(element.width - 8, 0);
-        context.quadraticCurveTo(element.width, 0, element.width, 8);
-        context.lineTo(element.width, element.height - 8);
-        context.quadraticCurveTo(element.width, element.height, element.width - 8, element.height);
-        context.lineTo(8, element.height);
-        context.quadraticCurveTo(0, element.height, 0, element.height - 8);
-        context.closePath();
-        context.fill();
-        context.stroke();
-        context.restore();
+    case "stickynote": {
+      // Render stickynote background
+      const sticky = element as any;
+      context.save();
+      context.fillStyle = sticky.backgroundColor;
+      context.strokeStyle = sticky.strokeColor;
+      context.globalAlpha = sticky.opacity / 100;
+      context.lineJoin = "round";
+      context.lineWidth = 2;
+      context.beginPath();
+      context.moveTo(0, 8);
+      context.quadraticCurveTo(0, 0, 8, 0);
+      context.lineTo(element.width - 8, 0);
+      context.quadraticCurveTo(element.width, 0, element.width, 8);
+      context.lineTo(element.width, element.height - 8);
+      context.quadraticCurveTo(element.width, element.height, element.width - 8, element.height);
+      context.lineTo(8, element.height);
+      context.quadraticCurveTo(0, element.height, 0, element.height - 8);
+      context.closePath();
+      context.fill();
+      context.stroke();
+      context.restore();
 
-        // Render stickynote text only if present
-        if (element.text && element.text.trim() !== "") {
-          const rtl = isRTL(element.text);
-          const shouldTemporarilyAttach = rtl && !context.canvas.isConnected;
-          if (shouldTemporarilyAttach) {
-            document.body.appendChild(context.canvas);
-          }
-          context.canvas.setAttribute("dir", rtl ? "rtl" : "ltr");
-          context.save();
-          context.font = getFontString({ fontSize: element.fontSize, fontFamily: element.fontFamily });
-          context.fillStyle =
-            renderConfig.theme === THEME.DARK
-              ? applyDarkModeFilter(element.strokeColor)
-              : element.strokeColor;
-          context.textAlign = element.textAlign as CanvasTextAlign;
-
-          const lines = element.text.replace(/\r\n?/g, "\n").split("\n");
-          const horizontalOffset =
-            element.textAlign === "center"
-              ? element.width / 2
-              : element.textAlign === "right"
-              ? element.width
-              : 0;
-          const lineHeightPx = getLineHeightInPx(
-            element.fontSize,
-            element.lineHeight,
-          );
-          const verticalOffset = getVerticalOffset(
-            element.fontFamily,
-            element.fontSize,
-            lineHeightPx,
-          );
-          for (let index = 0; index < lines.length; index++) {
-            context.fillText(
-              lines[index],
-              horizontalOffset,
-              index * lineHeightPx + verticalOffset,
-            );
-          }
-          context.restore();
-          if (shouldTemporarilyAttach) {
-            context.canvas.remove();
-          }
+      // Render stickynote text only if present
+      if (sticky.text && sticky.text.trim() !== "") {
+        const rtl = isRTL(sticky.text);
+        const shouldTemporarilyAttach = rtl && !context.canvas.isConnected;
+        if (shouldTemporarilyAttach) {
+          document.body.appendChild(context.canvas);
         }
-      } else if (isTextElement(element)) {
+        context.canvas.setAttribute("dir", rtl ? "rtl" : "ltr");
+        context.save();
+        context.font = getFontString({ fontSize: sticky.fontSize, fontFamily: sticky.fontFamily });
+        context.fillStyle =
+          renderConfig.theme === THEME.DARK
+            ? applyDarkModeFilter(sticky.strokeColor)
+            : sticky.strokeColor;
+        context.textAlign = sticky.textAlign as CanvasTextAlign;
+
+        const lines = sticky.text.replace(/\r\n?/g, "\n").split("\n");
+        const horizontalOffset =
+          sticky.textAlign === "center"
+            ? sticky.width / 2
+            : sticky.textAlign === "right"
+            ? sticky.width
+            : 0;
+        const lineHeightPx = getLineHeightInPx(
+          sticky.fontSize,
+          sticky.lineHeight,
+        );
+        const verticalOffset = getVerticalOffset(
+          sticky.fontFamily,
+          sticky.fontSize,
+          lineHeightPx,
+        );
+        for (let index = 0; index < lines.length; index++) {
+          context.fillText(
+            lines[index],
+            horizontalOffset,
+            index * lineHeightPx + verticalOffset,
+          );
+        }
+        context.restore();
+        if (shouldTemporarilyAttach) {
+          context.canvas.remove();
+        }
+      }
+      break;
+    }
+    default: {
+      if (isTextElement(element)) {
         const rtl = isRTL(element.text);
         const shouldTemporarilyAttach = rtl && !context.canvas.isConnected;
         if (shouldTemporarilyAttach) {
@@ -798,6 +801,41 @@ export const renderElement = (
   );
 
   switch (element.type) {
+    case "stickynote": {
+      if (renderConfig.isExporting) {
+        const [x1, y1, x2, y2] = getElementAbsoluteCoords(element, elementsMap);
+        const cx = (x1 + x2) / 2 + appState.scrollX;
+        const cy = (y1 + y2) / 2 + appState.scrollY;
+        const shiftX = (x2 - x1) / 2 - (element.x - x1);
+        const shiftY = (y2 - y1) / 2 - (element.y - y1);
+        context.save();
+        context.translate(cx, cy);
+        context.rotate(element.angle);
+        context.translate(-shiftX, -shiftY);
+        drawElementOnCanvas(element, rc, context, renderConfig);
+        context.restore();
+      } else {
+        const elementWithCanvas = generateElementWithCanvas(
+          element,
+          allElementsMap,
+          renderConfig,
+          appState,
+        );
+        if (!elementWithCanvas) {
+          return;
+        }
+
+        drawElementFromCanvas(
+          elementWithCanvas,
+          context,
+          renderConfig,
+          appState,
+          allElementsMap,
+        );
+      }
+
+      break;
+    }
     case "magicframe":
     case "frame": {
       if (appState.frameRendering.enabled && appState.frameRendering.outline) {

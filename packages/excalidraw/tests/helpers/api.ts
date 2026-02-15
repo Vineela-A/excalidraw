@@ -17,6 +17,7 @@ import {
   newLinearElement,
   newMagicFrameElement,
   newTextElement,
+  newStickynoteElement,
 } from "@excalidraw/element";
 
 import { isLinearElementType } from "@excalidraw/element";
@@ -286,6 +287,18 @@ export class API {
           ...base,
         });
         break;
+        case "stickynote":
+          element = newStickynoteElement({
+            ...base,
+            text: rest.text || "note",
+            fontSize: rest.fontSize ?? appState.currentItemFontSize,
+            fontFamily: rest.fontFamily ?? appState.currentItemFontFamily,
+            textAlign: rest.textAlign ?? appState.currentItemTextAlign,
+            verticalAlign: rest.verticalAlign ?? DEFAULT_VERTICAL_ALIGN,
+          });
+          element.width = width;
+          element.height = height;
+          break;
       case "embeddable":
         element = newEmbeddableElement({
           type: "embeddable",

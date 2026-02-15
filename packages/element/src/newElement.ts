@@ -75,13 +75,15 @@ export const newStickynoteElement = (
   },
 ): NonDeleted<ExcalidrawStickynoteElement> => {
   const fontFamily = opts.fontFamily || DEFAULT_FONT_FAMILY;
-  const fontSize = opts.fontSize || DEFAULT_FONT_SIZE;
+  // default sticky-note font size slightly smaller than the global default
+  // reduce by default to fit more text in sticky notes
+  const fontSize = opts.fontSize || 12;
   // Brand lineHeight as unitlessLineHeight
   const rawLineHeight = opts.lineHeight || getLineHeight(fontFamily);
   const lineHeight = rawLineHeight as number & { _brand: "unitlessLineHeight" };
   const text = normalizeText(opts.text);
-  const width = opts.width || 200;
-  const height = opts.height || 200;
+  const width = opts.width || 140;
+  const height = opts.height || 100;
   // Ensure index is FractionalIndex|null
   const index = opts.index as (string & { _brand: "franctionalIndex" }) | null ?? null;
   return {

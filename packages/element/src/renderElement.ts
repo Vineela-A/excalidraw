@@ -104,6 +104,49 @@ const getCanvasPadding = (element: ExcalidrawElement) => {
   }
 };
 
+// Lightweight color helper: supports #rgb, #rrggbb, rgb(...), rgba(...)
+function lightenColor(color: string | undefined, amount: number): string | undefined {
+  if (!color) return undefined;
+  color = color.trim();
+  let r = 0,
+    g = 0,
+    b = 0,
+    a = 1;
+
+  if (color.startsWith("#")) {
+    const hex = color.slice(1);
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+    } else if (hex.length === 6) {
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+    } else {
+      return undefined;
+    }
+  } else if (color.startsWith("rgb")) {
+    const parts = color.replace(/rgba?\(|\)/g, "").split(",").map(p => p.trim());
+    if (parts.length >= 3) {
+      r = parseInt(parts[0], 10);
+      g = parseInt(parts[1], 10);
+      b = parseInt(parts[2], 10);
+      if (parts.length === 4) a = parseFloat(parts[3]);
+    } else {
+      return undefined;
+    }
+  } else {
+    return undefined;
+  }
+
+  r = Math.round(r + (255 - r) * amount);
+  g = Math.round(g + (255 - g) * amount);
+  b = Math.round(b + (255 - b) * amount);
+
+  return a === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
 export const getRenderOpacity = (
   element: ExcalidrawElement,
   containingFrame: ExcalidrawFrameLikeElement | null,
@@ -476,26 +519,83 @@ const drawElementOnCanvas = (
       break;
     }
     case "stickynote": {
-      // Render stickynote background
+      // Render stickynote with subtle drop shadow and padded text
       const sticky = element as any;
+      const corner = 0;
+      // shadow offset (x,y) and fill
+      const shadowOffsetX = 4;
+      const shadowOffsetY = 6;
+      const shadowColor = "rgba(0,0,0,0.12)";
+
+      // Draw shadow as an offset rounded rect (separate from the main fill)
+      context.save();
+      context.globalAlpha = sticky.opacity / 100;
+      context.fillStyle = shadowColor;
+      context.beginPath();
+      context.moveTo(shadowOffsetX, shadowOffsetY + corner);
+      context.quadraticCurveTo(shadowOffsetX, shadowOffsetY, shadowOffsetX + corner, shadowOffsetY);
+      context.lineTo(shadowOffsetX + element.width - corner, shadowOffsetY);
+      context.quadraticCurveTo(shadowOffsetX + element.width, shadowOffsetY, shadowOffsetX + element.width, shadowOffsetY + corner);
+      context.lineTo(shadowOffsetX + element.width, shadowOffsetY + element.height - corner);
+      context.quadraticCurveTo(
+        shadowOffsetX + element.width,
+        shadowOffsetY + element.height,
+        shadowOffsetX + element.width - corner,
+        shadowOffsetY + element.height,
+      );
+      context.lineTo(shadowOffsetX + corner, shadowOffsetY + element.height);
+      context.quadraticCurveTo(shadowOffsetX, shadowOffsetY + element.height, shadowOffsetX, shadowOffsetY + element.height - corner);
+      context.closePath();
+      context.fill();
+      context.restore();
+
+      // Draw main sticky note
       context.save();
       context.fillStyle = sticky.backgroundColor;
       context.strokeStyle = sticky.strokeColor;
       context.globalAlpha = sticky.opacity / 100;
       context.lineJoin = "round";
-      context.lineWidth = 2;
+      // No visible stroke for stickynotes — keep the appearance as a plain
+      // sheet of paper so selection border sits flush with the fill.
+      context.lineWidth = 0;
       context.beginPath();
-      context.moveTo(0, 8);
-      context.quadraticCurveTo(0, 0, 8, 0);
-      context.lineTo(element.width - 8, 0);
-      context.quadraticCurveTo(element.width, 0, element.width, 8);
-      context.lineTo(element.width, element.height - 8);
-      context.quadraticCurveTo(element.width, element.height, element.width - 8, element.height);
-      context.lineTo(8, element.height);
-      context.quadraticCurveTo(0, element.height, 0, element.height - 8);
+      context.moveTo(0, corner);
+      context.quadraticCurveTo(0, 0, corner, 0);
+      context.lineTo(element.width - corner, 0);
+      context.quadraticCurveTo(element.width, 0, element.width, corner);
+      context.lineTo(element.width, element.height - corner);
+      context.quadraticCurveTo(element.width, element.height, element.width - corner, element.height);
+      context.lineTo(corner, element.height);
+      context.quadraticCurveTo(0, element.height, 0, element.height - corner);
       context.closePath();
       context.fill();
-      context.stroke();
+      context.restore();
+
+      // Draw inner inset lighter rectangle to simulate the pasted paper area
+      // INSET scales with element size so the visible note scales proportionally
+      // to the element. Clamp to a sensible min/max so it looks good on extremes.
+      const rawInset = Math.min(element.width, element.height) * 0.08;
+      const INSET = Math.max(8, Math.min(64, Math.round(rawInset)));
+      const innerColor = lightenColor(sticky.backgroundColor, 0.06) || "#fffce0";
+      context.save();
+      context.globalAlpha = (sticky.opacity / 100) * 0.95;
+      context.fillStyle = innerColor;
+      context.beginPath();
+      context.moveTo(INSET, INSET + corner);
+      context.quadraticCurveTo(INSET, INSET, INSET + corner, INSET);
+      context.lineTo(element.width - INSET - corner, INSET);
+      context.quadraticCurveTo(element.width - INSET, INSET, element.width - INSET, INSET + corner);
+      context.lineTo(element.width - INSET, element.height - INSET - corner);
+      context.quadraticCurveTo(
+        element.width - INSET,
+        element.height - INSET,
+        element.width - INSET - corner,
+        element.height - INSET,
+      );
+      context.lineTo(INSET + corner, element.height - INSET);
+      context.quadraticCurveTo(INSET, element.height - INSET, INSET, element.height - INSET - corner);
+      context.closePath();
+      context.fill();
       context.restore();
 
       // Render stickynote text only if present
@@ -512,15 +612,13 @@ const drawElementOnCanvas = (
           renderConfig.theme === THEME.DARK
             ? applyDarkModeFilter(sticky.strokeColor)
             : sticky.strokeColor;
-        context.textAlign = sticky.textAlign as CanvasTextAlign;
+
+        // padding inside the sticky note
+        // set all internal padding to 0 per user request
+        const PAD_X = 0;
+        const PAD_Y = 0;
 
         const lines = sticky.text.replace(/\r\n?/g, "\n").split("\n");
-        const horizontalOffset =
-          sticky.textAlign === "center"
-            ? sticky.width / 2
-            : sticky.textAlign === "right"
-            ? sticky.width
-            : 0;
         const lineHeightPx = getLineHeightInPx(
           sticky.fontSize,
           sticky.lineHeight,
@@ -530,11 +628,28 @@ const drawElementOnCanvas = (
           sticky.fontSize,
           lineHeightPx,
         );
+
+        // compute horizontal x coordinate based on alignment and padding
+        let xPos: number | "center" = PAD_X;
+        if (sticky.textAlign === "center") {
+          xPos = sticky.width / 2;
+          context.textAlign = "center" as CanvasTextAlign;
+        } else if (sticky.textAlign === "right") {
+          xPos = sticky.width - PAD_X;
+          context.textAlign = "right" as CanvasTextAlign;
+        } else {
+          xPos = PAD_X;
+          context.textAlign = "left" as CanvasTextAlign;
+        }
+
+        // starting y position: include top padding
+        const startY = PAD_Y + verticalOffset;
+
         for (let index = 0; index < lines.length; index++) {
           context.fillText(
             lines[index],
-            horizontalOffset,
-            index * lineHeightPx + verticalOffset,
+            xPos as number,
+            index * lineHeightPx + startY,
           );
         }
         context.restore();

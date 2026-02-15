@@ -6,6 +6,7 @@
     "selectAll": "Select all",
     "multiSelect": "Add element to selection",
     "moveCanvas": "Move canvas",
+    "doubleClickToEdit": "Double-click to edit ✏️",
     "cut": "Cut",
     "copy": "Copy",
     "copyAsPng": "Copy to clipboard as PNG",

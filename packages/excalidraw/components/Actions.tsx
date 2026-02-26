@@ -82,6 +82,7 @@ import {
   DotsHorizontalIcon,
   SelectionIcon,
   pencilIcon,
+  StickyNoteIcon,
 } from "./icons";
 
 import { Island } from "./Island";
@@ -1176,6 +1177,21 @@ export const ShapesSwitcher = ({
           );
         },
       )}
+      {/* Sticky note quick button beside image */}
+      <ToolButton
+        className={clsx("Shape", { fillable: true })}
+        key={"sticky"}
+        type="button"
+        icon={StickyNoteIcon}
+        name="editor-sticky"
+        title={capitalizeString(t("toolBar.sticky"))}
+        aria-label={t("toolBar.sticky")}
+        data-testid={`toolbar-sticky`}
+        onClick={() => {
+          // create sticky note at viewport center
+          (app as any).createStickyAtViewportCenter && (app as any).createStickyAtViewportCenter();
+        }}
+      />
       <div className="App-toolbar__divider" />
 
       <DropdownMenu open={isExtraToolsMenuOpen}>
@@ -1228,6 +1244,13 @@ export const ShapesSwitcher = ({
           >
             {t("toolBar.embeddable")}
           </DropdownMenu.Item>
+                  <DropdownMenu.Item
+                    onSelect={() => (app as any).createStickyAtViewportCenter()}
+                    icon={StickyNoteIcon}
+                    data-testid="toolbar-sticky"
+                  >
+                    {t("toolBar.sticky")}
+                  </DropdownMenu.Item>
           <DropdownMenu.Item
             onSelect={() => app.setActiveTool({ type: "laser" })}
             icon={laserPointerToolIcon}

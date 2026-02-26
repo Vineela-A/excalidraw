@@ -140,6 +140,20 @@ export const PinIcon = createIcon(
   tablerIconProps,
 );
 
+// sticky note icon
+export const StickyNoteIcon = createIcon(
+  <g strokeWidth="1.25">
+    <rect x={3} y={3} width={18} height={18} rx={2} ry={2} fill="none" stroke="currentColor" />
+    <path d="M7 10h10" stroke="currentColor" strokeWidth={1.2} />
+    <path d="M7 13h8" stroke="currentColor" strokeWidth={1.2} />
+    <path d="M14 3v5a2 2 0 0 0 2 2h5" stroke="currentColor" fill="none" opacity="0.6" transform="translate(-3,-1)"/>
+  </g>,
+  modifiedTablerIconProps,
+);
+
+// custom: sticky note
+// (duplicate sticky icon removed)
+
 export const polygonIcon = createIcon(
   <g strokeWidth={1.25}>
     <path stroke="none" d="M0 0h24v24H0z" fill="none" />

@@ -8799,6 +8799,59 @@ class App extends React.Component<AppProps, AppState> {
     });
   };
 
+  public createStickyAtViewportCenter = () => {
+    try {
+      const clientX = this.state.width / 2 + this.state.offsetLeft;
+      const clientY = this.state.height / 2 + this.state.offsetTop;
+
+      const { x, y } = viewportCoordsToSceneCoords(
+        { clientX, clientY },
+        this.state,
+      );
+
+      // default sticky note size in CSS pixels, scaled to scene by zoom
+      const DEFAULT_STICKY_WIDTH = 200;
+      const DEFAULT_STICKY_HEIGHT = 150;
+
+      const width = DEFAULT_STICKY_WIDTH / this.state.zoom.value;
+      const height = DEFAULT_STICKY_HEIGHT / this.state.zoom.value;
+
+      const sticky = newElement({
+        type: "rectangle",
+        x: x - width / 2,
+        y: y - height / 2,
+        width,
+        height,
+        backgroundColor: "#fff59d",
+        strokeColor: "#e6d868",
+        fillStyle: "solid",
+        // rounded corners for sticky note
+        roundness: { type: ROUNDNESS.PROPORTIONAL_RADIUS },
+        strokeWidth: 1,
+        roughness: 0,
+        opacity: 1,
+      }) as any;
+
+      this.scene.insertElement(sticky);
+
+      this.setState({
+        multiElement: null,
+        newElement: sticky,
+      });
+
+      // Start editing text bound to this sticky
+      this.startTextEditing({
+        sceneX: x,
+        sceneY: y,
+        insertAtParentCenter: true,
+        container: sticky as any,
+        autoEdit: true,
+      });
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   private maybeCacheReferenceSnapPoints(
     event: KeyboardModifiersObject,
     selectedElements: ExcalidrawElement[],

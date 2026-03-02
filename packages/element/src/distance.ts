@@ -50,6 +50,7 @@ export const distanceToElement = (
     case "freedraw":
       return distanceToLinearOrFreeDraElement(element, p);
   }
+  return 100;
 };
 
 /**

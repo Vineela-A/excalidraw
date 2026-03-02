@@ -60,6 +60,7 @@
     "tinycolor2": "1.6.0"
   },
   "devDependencies": {
-    "@types/tinycolor2": "1.4.6"
+    "@types/tinycolor2": "1.4.6",
+    "rimraf": "^4.0.0"
   }
 }

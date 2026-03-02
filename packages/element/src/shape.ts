@@ -73,6 +73,7 @@ import type {
   ExcalidrawFreeDrawElement,
   ElementsMap,
   ExcalidrawLineElement,
+  ExcalidrawStickynoteElement,
 } from "./types";
 
 import type { Drawable, Options } from "roughjs/bin/core";
@@ -860,17 +861,15 @@ const _generateElementShape = (
     case "frame":
     case "magicframe":
     case "text":
-    case "image": {
+    case "image":
+    case "stickynote": {
       const shape: ElementShapes[typeof element.type] = null;
       // we return (and cache) `null` to make sure we don't regenerate
       // `element.canvas` on rerenders
       return shape;
     }
     default: {
-      assertNever(
-        element,
-        `generateElementShape(): Unimplemented type ${(element as any)?.type}`,
-      );
+      assertNever(element, null);
       return null;
     }
   }
@@ -956,10 +955,12 @@ export const getElementShape = <Point extends GlobalPoint | LocalPoint>(
     case "magicframe":
     case "embeddable":
     case "image":
-    case "iframe":
-    case "text":
-    case "selection":
+    case "iframe": 
+    case "text": 
+    case "stickynote": 
+    case "selection": {
       return getPolygonShape(element);
+    }
     case "arrow":
     case "line": {
       const roughShape = ShapeCache.generateElementShape(element, null)[0];
@@ -980,10 +981,9 @@ export const getElementShape = <Point extends GlobalPoint | LocalPoint>(
             pointFrom(cx, cy),
           );
     }
-
-    case "ellipse":
+    case "ellipse": {
       return getEllipseShape(element);
-
+    }
     case "freedraw": {
       const [, , , , cx, cy] = getElementAbsoluteCoords(element, elementsMap);
       return getFreedrawShape(
@@ -991,6 +991,15 @@ export const getElementShape = <Point extends GlobalPoint | LocalPoint>(
         pointFrom(cx, cy),
         shouldTestInside(element),
       );
+    }
+    default: {
+      assertNever(
+        element,
+        `generateElementShape(): Unimplemented type ${(element as any)?.type}`,
+      );
+      // Return a dummy value to satisfy GeometricShape<Point> type
+      // This should never be reached
+      return { type: "polygon", data: [] as any };
     }
   }
 };

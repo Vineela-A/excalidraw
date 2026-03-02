@@ -103,6 +103,7 @@ export const textWysiwyg = ({
   excalidrawContainer,
   app,
   autoSelect = true,
+  isStickynote = false,
 }: {
   id: ExcalidrawElement["id"];
   /**
@@ -119,7 +120,13 @@ export const textWysiwyg = ({
   excalidrawContainer: HTMLDivElement | null;
   app: App;
   autoSelect?: boolean;
+  isStickynote?: boolean;
 }): SubmitHandler => {
+  // Debug: trace entry so we can verify this function is invoked at runtime
+  // and inspect provided params when troubleshooting wysiwyg creation.
+  // Remove these logs after debugging.
+  // eslint-disable-next-line no-console
+  console.debug("[dev] textWysiwyg invoked", { id, elementId: element.id, hasExcalidrawContainer: !!excalidrawContainer });
   const textPropertiesUpdated = (
     updatedTextElement: ExcalidrawTextElement,
     editable: HTMLTextAreaElement,
@@ -246,6 +253,13 @@ export const textWysiwyg = ({
       if (!container) {
         maxWidth = (appState.width - 8 - viewportX) / appState.zoom.value;
         width = Math.min(width, maxWidth);
+        
+        // Account for sticky note internal padding (4px on each side)
+        // to match the rendering in renderElement.ts
+        if (isStickynote) {
+          const STICKY_NOTE_PADDING = 4;
+          width = Math.max(20, width - STICKY_NOTE_PADDING * 2);
+        }
       } else {
         width += 0.5;
       }
@@ -282,6 +296,11 @@ export const textWysiwyg = ({
             : updatedTextElement.strokeColor,
         opacity: updatedTextElement.opacity / 100,
         maxHeight: `${editorMaxHeight}px`,
+        // Set caret color to match text color for visibility
+        caretColor:
+          appState.theme === THEME.DARK
+            ? applyDarkModeFilter(updatedTextElement.strokeColor)
+            : updatedTextElement.strokeColor,
       });
       editable.scrollTop = 0;
       // For some reason updating font attribute doesn't set font family
@@ -299,8 +318,9 @@ export const textWysiwyg = ({
   editable.dir = "auto";
   editable.tabIndex = 0;
   editable.dataset.type = "wysiwyg";
-  // prevent line wrapping on Safari
-  editable.wrap = "off";
+  // Enable line wrapping for bound or non-autoResize elements (e.g. stickynotes)
+  // otherwise keep wrapping off to mimic unbounded text behavior.
+  editable.wrap = isBoundToContainer(element) || !element.autoResize ? "soft" : "off";
   editable.classList.add("excalidraw-wysiwyg");
 
   let whiteSpace = "pre";
@@ -321,9 +341,14 @@ export const textWysiwyg = ({
     outline: 0,
     resize: "none",
     background: "transparent",
-    overflow: "hidden",
+    // Prefer vertical scrolling for fixed-size editors (stickynotes)
+    overflowY: isBoundToContainer(element) || !element.autoResize ? "auto" : "hidden",
+    overflowX: "hidden",
     // must be specified because in dark mode canvas creates a stacking context
     zIndex: "var(--zIndex-wysiwyg)",
+    // Ensure the textarea itself handles pointer events and shows a text cursor
+    pointerEvents: "auto",
+    cursor: "text",
     wordBreak,
     // prevent line wrapping (`whitespace: nowrap` doesn't work on FF)
     whiteSpace,
@@ -773,7 +798,10 @@ export const textWysiwyg = ({
     const isPopupOpened = !!document.activeElement?.closest(
       ".properties-content",
     );
-    if (!isPopupOpened) {
+    // Only focus the editable if it's not already focused. Re-focusing
+    // on every scene update causes the caret to jump to the end which
+    // prevents placing the caret in the middle of the text when clicking.
+    if (!isPopupOpened && document.activeElement !== editable) {
       editable.focus();
     }
   });
@@ -813,9 +841,16 @@ export const textWysiwyg = ({
     window.addEventListener("pointerdown", onPointerDown, { capture: true });
   });
   window.addEventListener("beforeunload", handleSubmit);
-  excalidrawContainer
-    ?.querySelector(".excalidraw-textEditorContainer")!
-    .appendChild(editable);
+  // If `excalidrawContainer` is not available (race or ref not set),
+  // fall back to querying the document for the container so the
+  // wysiwyg textarea still gets appended in production builds.
+  const textEditorContainer =
+    excalidrawContainer?.querySelector(".excalidraw-textEditorContainer") ||
+    document.querySelector(".excalidraw-textEditorContainer");
+
+  textEditorContainer?.appendChild(editable);
+  // eslint-disable-next-line no-console
+  console.debug("[dev] textWysiwyg appended editable", { id, container: !!textEditorContainer, containerChildCount: textEditorContainer?.childElementCount });
 
   return handleSubmit;
 };

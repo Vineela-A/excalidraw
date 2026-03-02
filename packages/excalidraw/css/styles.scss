@@ -635,6 +635,34 @@ body.excalidraw-cursor-resize * {
     background: var(--scrollbar-thumb);
   }
 
+  /* Ensure wysiwyg textarea is interactive and caret is visible */
+  .excalidraw-textEditorContainer .excalidraw-wysiwyg {
+    pointer-events: auto !important;
+    cursor: text !important;
+    caret-color: var(--text-primary-color) !important;
+    z-index: var(--zIndex-wysiwyg, 99999) !important;
+    background: transparent !important;
+    color: var(--text-primary-color) !important;
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    outline: none !important;
+  }
+
+  /* Fallback/global rule: some builds or editing contexts append the
+     wysiwyg outside the editor container — ensure the textarea is
+     always interactive and the cursor/caret are visible. */
+  .excalidraw-wysiwyg {
+    pointer-events: auto !important;
+    cursor: text !important;
+    caret-color: var(--text-primary-color) !important;
+    z-index: var(--zIndex-wysiwyg, 99999) !important;
+    background: transparent !important;
+    color: var(--text-primary-color) !important;
+    -webkit-user-select: text !important;
+    user-select: text !important;
+    outline: none !important;
+  }
+
   .mobile-misc-tools-container {
     position: absolute;
     top: calc(5rem - var(--editor-container-padding));

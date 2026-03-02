@@ -70,6 +70,8 @@
   "bugs": "https://github.com/excalidraw/excalidraw/issues",
   "homepage": "https://github.com/excalidraw/excalidraw/tree/master/packages/excalidraw",
   "scripts": {
+    "postinstall": "npm run build",
+    "build": "yarn build:esm",
     "gen:types": "rimraf types && tsc",
     "build:esm": "rimraf dist && node ../../scripts/buildPackage.js && yarn gen:types"
   },
@@ -79,11 +81,11 @@
   },
   "dependencies": {
     "@braintree/sanitize-url": "6.0.2",
-    "@excalidraw/common": "0.18.0",
-    "@excalidraw/element": "0.18.0",
+    "@excalidraw/common": "workspace:*",
+    "@excalidraw/element": "workspace:*",
     "@excalidraw/laser-pointer": "1.3.1",
-    "@excalidraw/math": "0.18.0",
-    "@excalidraw/mermaid-to-excalidraw": "2.0.0-rfc3",
+    "@excalidraw/math": "workspace:*",
+    "@excalidraw/mermaid-to-excalidraw": "1.1.3",
     "@excalidraw/random-username": "1.1.0",
     "radix-ui": "1.4.3",
     "browser-fs-access": "0.29.1",
@@ -132,5 +134,7 @@
     "harfbuzzjs": "0.3.6",
     "jest-diff": "29.7.0",
     "typescript": "5.9.3"
+    ,
+    "rimraf": "^4.0.0"
   }
 }

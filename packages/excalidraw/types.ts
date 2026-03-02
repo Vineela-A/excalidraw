@@ -152,6 +152,7 @@ export type ToolType =
   | "freedraw"
   | "text"
   | "image"
+  | "stickynote"
   | "eraser"
   | "hand"
   | "frame"

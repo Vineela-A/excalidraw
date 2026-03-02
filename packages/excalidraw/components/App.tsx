@@ -1,3 +1,4 @@
+import { newStickynoteElement, isStickynoteElement } from "@excalidraw/element";
 import clsx from "clsx";
 import throttle from "lodash.throttle";
 import React, { useContext } from "react";
@@ -29,6 +30,7 @@ import {
   CURSOR_TYPE,
   DEFAULT_MAX_IMAGE_WIDTH_OR_HEIGHT,
   DEFAULT_VERTICAL_ALIGN,
+  COLOR_STICKYNOTE_YELLOW,
   DRAGGING_THRESHOLD,
   ELEMENT_SHIFT_TRANSLATE_AMOUNT,
   ELEMENT_TRANSLATE_AMOUNT,
@@ -62,6 +64,7 @@ import {
   toValidURL,
   getGridPoint,
   getLineHeight,
+  MIN_FONT_SIZE,
   debounce,
   distance,
   getFontString,
@@ -285,6 +288,7 @@ import type {
   ExcalidrawElbowArrowElement,
   SceneElementsMap,
   ExcalidrawBindableElement,
+  ExcalidrawStickynoteElement,
 } from "@excalidraw/element/types";
 
 import type { Mutable, ValueOf } from "@excalidraw/common/utility-types";
@@ -590,6 +594,60 @@ const gesture: Gesture = {
 };
 
 class App extends React.Component<AppProps, AppState> {
+    private handleStickynoteOnPointerDown = (
+      event: React.PointerEvent<HTMLElement>,
+      pointerDownState: PointerDownState,
+    ): void => {
+      if (this.state.editingTextElement) {
+        return;
+      }
+      // place sticky note exactly where user clicked (no grid snap)
+      const gridX = pointerDownState.origin.x;
+      const gridY = pointerDownState.origin.y;
+
+      const topLayerFrame = this.getTopLayerFrameAtSceneCoords({
+        x: gridX,
+        y: gridY,
+      });
+
+      const element = newStickynoteElement({
+        x: gridX,
+        y: gridY,
+        text: "",
+        fontSize: this.state.currentItemFontSize,
+        fontFamily: this.state.currentItemFontFamily,
+        textAlign: this.state.currentItemTextAlign,
+        verticalAlign: DEFAULT_VERTICAL_ALIGN,
+        lineHeight: getLineHeight(this.state.currentItemFontFamily),
+        backgroundColor: COLOR_STICKYNOTE_YELLOW,
+        strokeColor: this.state.currentItemStrokeColor,
+        opacity: this.state.currentItemOpacity,
+        groupIds: [],
+        frameId: topLayerFrame ? topLayerFrame.id : null,
+        locked: false,
+      });
+      // make newly created sticky note a compact note so the user can immediately add text
+      // sizes chosen to match wrapper: 120x120
+      element.width = 120;
+      element.height = 120;
+
+      this.scene.insertElement(element);
+      this.setState({ editingTextElement: element });
+      // Defer opening the wysiwyg to avoid immediately submitting due to the
+      // same pointerdown event that created the sticky note.
+      requestAnimationFrame(() =>
+        this.handleTextWysiwyg(element as any, { isExistingElement: false }),
+      );
+
+      resetCursor(this.interactiveCanvas);
+      if (!this.state.activeTool.locked) {
+        this.setState({
+          activeTool: updateActiveTool(this.state, {
+            type: this.state.preferredSelectionTool.type,
+          }),
+        });
+      }
+    };
   canvas: AppClassProperties["canvas"];
   interactiveCanvas: AppClassProperties["interactiveCanvas"] = null;
   rc: RoughCanvas;
@@ -2304,6 +2362,38 @@ class App extends React.Component<AppProps, AppState> {
                         {showShapeSwitchPanel && (
                           <ConvertElementTypePopup app={this} />
                         )}
+                        {/* Sticky-note tooltip near pointer when a single sticky note is selected */}
+                        {selectedElements.length === 1 &&
+                          isStickynoteElement(firstSelectedElement) &&
+                          this.lastPointerMoveCoords && (
+                            (() => {
+                              const { x: sceneX, y: sceneY } = this.lastPointerMoveCoords!;
+                              const { x: viewportX, y: viewportY } = sceneCoordsToViewportCoords(
+                                { sceneX, sceneY },
+                                this.state,
+                              );
+                              const left = viewportX - this.state.offsetLeft + 12;
+                              const top = viewportY - this.state.offsetTop + 12;
+                              return (
+                                <div
+                                  style={{
+                                    position: "absolute",
+                                    left: `${left}px`,
+                                    top: `${top}px`,
+                                    background: "rgba(0,0,0,0.85)",
+                                    color: "#fff",
+                                    padding: "6px 8px",
+                                    borderRadius: 6,
+                                    fontSize: 12,
+                                    pointerEvents: "none",
+                                    zIndex: 9999,
+                                  }}
+                                >
+                                  {t(("labels.doubleClickToEdit" as any)) ?? "Double-click to edit ✏️"}
+                                </div>
+                              );
+                            })()
+                          )}
                       </ExcalidrawActionManagerContext.Provider>
                       {this.renderEmbeddables()}
                     </ExcalidrawElementsContext.Provider>
@@ -5513,13 +5603,59 @@ class App extends React.Component<AppProps, AppState> {
   });
 
   private handleTextWysiwyg(
-    element: ExcalidrawTextElement,
+    element: ExcalidrawTextElement | ExcalidrawStickynoteElement,
     {
       isExistingElement = false,
     }: {
       isExistingElement?: boolean;
     },
   ) {
+    // Normalize sticky note to a text-like element so `textWysiwyg` can read
+    // `originalText` and other text-related properties on initial render.
+    const normalizedElement: ExcalidrawTextElement = ((): ExcalidrawTextElement => {
+      // Runtime check - `isStickynoteElement` is imported in this file
+      // @ts-ignore
+      if (isStickynoteElement(element)) {
+        const s = element as ExcalidrawStickynoteElement;
+        return {
+          id: s.id,
+          x: s.x,
+          y: s.y,
+          width: s.width,
+          height: s.height,
+          angle: s.angle,
+          strokeColor: s.strokeColor,
+          backgroundColor: s.backgroundColor,
+          fillStyle: s.fillStyle,
+          strokeWidth: s.strokeWidth,
+          strokeStyle: s.strokeStyle,
+          roundness: s.roundness,
+          roughness: s.roughness,
+          opacity: s.opacity,
+          seed: s.seed,
+          version: s.version,
+          versionNonce: s.versionNonce,
+          isDeleted: s.isDeleted,
+          boundElements: s.boundElements,
+          updated: s.updated,
+          link: s.link,
+          locked: s.locked,
+          customData: s.customData,
+          // text element specific fields
+          type: "text",
+          fontSize: s.fontSize,
+          fontFamily: s.fontFamily,
+          text: s.text,
+          textAlign: s.textAlign,
+          verticalAlign: s.verticalAlign,
+          containerId: null,
+          originalText: s.text,
+          autoResize: false,
+          lineHeight: s.lineHeight as any,
+        } as ExcalidrawTextElement;
+      }
+      return element as ExcalidrawTextElement;
+    })();
     const elementsMap = this.scene.getElementsMapIncludingDeleted();
 
     const updateElement = (nextOriginalText: string, isDeleted: boolean) => {
@@ -5539,13 +5675,115 @@ class App extends React.Component<AppProps, AppState> {
               ),
             });
           }
+          // handle sticky note elements: update `text` field and recompute dimensions
+          // create a temporary text-like element for dimension calculation
+          // do not overwrite freshly-created sticky note size when text is empty
+          // @ts-ignore
+          if (_element.id === element.id && isStickynoteElement(_element)) {
+            const s = _element as ExcalidrawStickynoteElement;
+            const fakeTextElement = ({
+              ...s,
+              // textElement shape expected by refreshTextDimensions
+              type: "text",
+              text: nextOriginalText,
+              originalText: nextOriginalText,
+              autoResize: false,
+              containerId: null,
+            } as unknown) as ExcalidrawTextElement;
+
+            let refreshed = refreshTextDimensions(
+              fakeTextElement,
+              null,
+              elementsMap,
+              nextOriginalText,
+            );
+
+            const shouldApplyDims = isExistingElement || nextOriginalText.trim().length > 0;
+
+            // Ensure text wraps to the stickynote's current width and do NOT
+            // change the sticky note dimensions when editing — keep fixed size
+            // and let the editor show scrollbars instead.
+            if (refreshed && isStickynoteElement(_element)) {
+              const s = _element as ExcalidrawStickynoteElement;
+              refreshed = {
+                ...refreshed,
+                // preserve the sticky note width and height — do not auto-grow
+                width: s.width ?? refreshed.width,
+                height: s.height ?? refreshed.height,
+              } as ReturnType<typeof refreshTextDimensions>;
+            }
+
+            // Reduce font size if text doesn't fit vertically inside the
+            // sticky note. We only shrink (never grow) and respect
+            // `MIN_FONT_SIZE`.
+            let scaledFontSize: number | null = null;
+            if (isStickynoteElement(_element)) {
+              const s = _element as ExcalidrawStickynoteElement;
+              const elementsMapForMeasure = elementsMap;
+              const originalFontSize = s.fontSize;
+              // if current refreshed height already fits, keep original font
+              if (refreshed && refreshed.height > (s.height ?? refreshed.height)) {
+                for (
+                  let fs = Math.max(MIN_FONT_SIZE, originalFontSize - 1);
+                  fs >= MIN_FONT_SIZE;
+                  fs--
+                ) {
+                  const fakeWithSmallerFont = ({
+                    ...fakeTextElement,
+                    fontSize: fs,
+                    width: s.width,
+                  } as unknown) as ExcalidrawTextElement;
+
+                  const candidate = refreshTextDimensions(
+                    fakeWithSmallerFont,
+                    null,
+                    elementsMapForMeasure,
+                    nextOriginalText,
+                  );
+                  if (!candidate) continue;
+                  // candidate.height is computed from fontSize and wrapping
+                  if ((candidate.height ?? 0) <= (s.height ?? candidate.height)) {
+                    scaledFontSize = fs;
+                    // update refreshed to the candidate so subsequent logic uses it
+                    refreshed = {
+                      ...candidate,
+                      width: s.width,
+                      height: s.height ?? candidate.height,
+                    } as ReturnType<typeof refreshTextDimensions>;
+                    break;
+                  }
+                }
+              }
+            }
+
+            try {
+              // eslint-disable-next-line no-console
+              console.debug(
+                "[dev] stickynote refreshTextDimensions",
+                _element.id,
+                "nextText=",
+                nextOriginalText,
+                "shouldApply=",
+                shouldApplyDims,
+                "refreshed=",
+                refreshed?.width,
+                refreshed?.height,
+              );
+            } catch (e) {}
+
+            return newElementWith(_element, {
+              text: nextOriginalText,
+              isDeleted: isDeleted ?? _element.isDeleted,
+              ...(shouldApplyDims && refreshed ? refreshed : {}),
+            });
+          }
           return _element;
         }),
       ]);
     };
 
     textWysiwyg({
-      id: element.id,
+      id: normalizedElement.id,
       canvas: this.canvas,
       getViewportCoords: (x, y) => {
         const { x: viewportX, y: viewportY } = sceneCoordsToViewportCoords(
@@ -5573,9 +5811,9 @@ class App extends React.Component<AppProps, AppState> {
         // select the created text element only if submitting via keyboard
         // (when submitting via click it should act as signal to deselect)
         if (!isDeleted && viaKeyboard) {
-          const elementIdToSelect = element.containerId
-            ? element.containerId
-            : element.id;
+          const elementIdToSelect = normalizedElement.containerId
+            ? normalizedElement.containerId
+            : normalizedElement.id;
 
           // needed to ensure state is updated before "finalize" action
           // that's invoked on keyboard-submit as well
@@ -5617,21 +5855,22 @@ class App extends React.Component<AppProps, AppState> {
 
         this.focusContainer();
       }),
-      element,
+      element: normalizedElement,
       excalidrawContainer: this.excalidrawContainerRef.current,
       app: this,
       // when text is selected, it's hard (at least on iOS) to re-position the
       // caret (i.e. deselect). There's not much use for always selecting
       // the text on edit anyway (and users can select-all from contextmenu
       // if needed)
-      autoSelect: !this.editorInterface.isTouchScreen,
+      // Don't auto-select when editing existing elements (only for new ones)
+      autoSelect: !this.editorInterface.isTouchScreen && !isExistingElement,
     });
     // deselect all other elements when inserting text
     this.deselectElements();
 
     // do an initial update to re-initialize element position since we were
     // modifying element's x/y for sake of editor (case: syncing to remote)
-    updateElement(element.originalText, false);
+    updateElement(normalizedElement.originalText, false);
   }
 
   private deselectElements() {
@@ -5904,6 +6143,12 @@ class App extends React.Component<AppProps, AppState> {
     if (selectedElements.length === 1) {
       if (isTextElement(selectedElements[0])) {
         existingTextElement = selectedElements[0];
+      } else if (isStickynoteElement(selectedElements[0])) {
+        // treat stickynote as an existing text element so double-click edits it
+        // (normalize later in handleTextWysiwyg)
+        existingTextElement = (selectedElements[0] as unknown) as NonDeleted<
+          ExcalidrawTextElement
+        >;
       } else if (container) {
         existingTextElement = getBoundTextElement(
           selectedElements[0],
@@ -5914,6 +6159,20 @@ class App extends React.Component<AppProps, AppState> {
       }
     } else {
       existingTextElement = this.getTextElementAtPosition(sceneX, sceneY);
+    }
+
+    // If no text element found, check whether the hit element itself is a
+    // stickynote (user might have clicked a stickynote that isn't selected).
+    // In that case treat the stickynote as the existing text element so
+    // editing opens inside it instead of creating a new floating text element.
+    if (!existingTextElement) {
+      const hitEl = this.getElementAtPosition(sceneX, sceneY, {
+        includeBoundTextElement: true,
+        preferSelected: true,
+      });
+      if (hitEl && isStickynoteElement(hitEl)) {
+        existingTextElement = (hitEl as unknown) as NonDeleted<ExcalidrawTextElement>;
+      }
     }
 
     const fontFamily =
@@ -6341,6 +6600,8 @@ class App extends React.Component<AppProps, AppState> {
     const frames = this.scene
       .getNonDeletedFramesLikes()
       .filter(
+
+        
         (frame): frame is ExcalidrawFrameLikeElement =>
           !frame.locked && isCursorInFrame(sceneCoords, frame, elementsMap),
       );
@@ -6359,6 +6620,19 @@ class App extends React.Component<AppProps, AppState> {
       x: scenePointerX,
       y: scenePointerY,
     };
+    // DEV LOG: show active tool and editing state on pointer down
+    // remove before merging to mainline
+    try {
+      // eslint-disable-next-line no-console
+      console.debug(
+        "[dev] handleCanvasPointerDown",
+        this.state?.activeTool?.type,
+        "editingTextElement=",
+        !!this.state?.editingTextElement,
+      );
+    } catch (e) {
+      // ignore
+    }
 
     if (gesture.pointers.has(event.pointerId)) {
       gesture.pointers.set(event.pointerId, {
@@ -7586,6 +7860,29 @@ class App extends React.Component<AppProps, AppState> {
 
     if (this.handleIframeLikeCenterClick()) {
       return;
+    }
+
+    // Single-click on a sticky note should open text editor (convenience)
+    // when using the selection tool and it was a quick click (no drag).
+    const clicklength = this.lastPointerDownEvent
+      ? event.timeStamp - this.lastPointerDownEvent.timeStamp
+      : 0;
+    if (
+      clicklength < 300 &&
+      this.state.activeTool.type === this.state.preferredSelectionTool.type
+    ) {
+      const hitEl = this.getElementAtPosition(scenePointer.x, scenePointer.y, {
+        includeBoundTextElement: true,
+      });
+      // @ts-ignore
+      if (hitEl && isStickynoteElement(hitEl)) {
+        this.startTextEditing({
+          sceneX: scenePointer.x,
+          sceneY: scenePointer.y,
+          autoEdit: true,
+        });
+        return;
+      }
     }
 
     if (this.editorInterface.isTouchScreen) {
@@ -8911,7 +9208,8 @@ class App extends React.Component<AppProps, AppState> {
       | "diamond"
       | "ellipse"
       | "iframe"
-      | "embeddable",
+      | "embeddable"
+      | "stickynote",
   ) {
     return this.state.currentItemRoundness === "round"
       ? {
@@ -8923,9 +9221,81 @@ class App extends React.Component<AppProps, AppState> {
   }
 
   private createGenericElementOnPointerDown = (
-    elementType: ExcalidrawGenericElement["type"] | "embeddable",
+    elementType: ExcalidrawGenericElement["type"] | "embeddable" | "stickynote",
     pointerDownState: PointerDownState,
   ): void => {
+    // For stickynotes we want to place a 100x100 yellow note and open the
+    // text editor immediately (no grid snapping by default)
+    if (elementType === "stickynote") {
+      const x = pointerDownState.origin.x;
+      const y = pointerDownState.origin.y;
+      // DEV LOG: trace stickynote creation branch
+      try {
+        // eslint-disable-next-line no-console
+        console.debug(
+          "[dev] createGenericElementOnPointerDown: stickynote",
+          "activeTool=",
+          this.state?.activeTool?.type,
+          "origin=",
+          pointerDownState.origin,
+        );
+      } catch (e) {
+        // ignore
+      }
+
+      const topLayerFrame = this.getTopLayerFrameAtSceneCoords({ x, y });
+
+      const element = newStickynoteElement({
+        x,
+        y,
+        text: "",
+        fontSize: this.state.currentItemFontSize,
+        fontFamily: this.state.currentItemFontFamily,
+        textAlign: this.state.currentItemTextAlign,
+        verticalAlign: DEFAULT_VERTICAL_ALIGN,
+        lineHeight: getLineHeight(this.state.currentItemFontFamily),
+        backgroundColor: COLOR_STICKYNOTE_YELLOW,
+        strokeColor: this.state.currentItemStrokeColor,
+        opacity: this.state.currentItemOpacity,
+        groupIds: [],
+        frameId: topLayerFrame ? topLayerFrame.id : null,
+        locked: false,
+      });
+
+      element.width = 100;
+      element.height = 100;
+
+      this.scene.insertElement(element);
+      try {
+        // eslint-disable-next-line no-console
+        console.debug(
+          "[dev] stickynote inserted",
+          element.id,
+          "w=",
+          element.width,
+          "h=",
+          element.height,
+        );
+      } catch (e) {}
+      this.setState({ multiElement: null, newElement: element, editingTextElement: element });
+      // Defer wysiwyg to avoid immediate submit from the original pointerdown
+      // event that created the sticky note.
+      requestAnimationFrame(() =>
+        this.handleTextWysiwyg(element as any, { isExistingElement: false }),
+      );
+      resetCursor(this.interactiveCanvas);
+
+      if (!this.state.activeTool.locked) {
+        this.setState({
+          activeTool: updateActiveTool(this.state, {
+            type: this.state.preferredSelectionTool.type,
+          }),
+        });
+      }
+
+      return;
+    }
+
     const [gridX, gridY] = getGridPoint(
       pointerDownState.origin.x,
       pointerDownState.origin.y,

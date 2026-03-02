@@ -70,6 +70,36 @@ const modifiedTablerIconProps: Opts = {
 } as const;
 
 // -----------------------------------------------------------------------------
+// Stickynote icon (simple sticky note shape)
+export const StickynoteIcon = createIcon(
+  <g
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.25"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+  >
+    {/* Main sticky note shape with folded corner */}
+    <path d="
+      M4.75 2.5
+      H15.25
+      C16.35 2.5 17.25 3.4 17.25 4.5
+      V15
+      C17.25 16.1 16.35 17 15.25 17
+      H7.75
+      C7 17 6.4 16.7 6 16.15
+      L2.9 12.2
+      C2.6 11.8 2.5 11.3 2.5 10.85
+      V4.5
+      C2.5 3.4 3.4 2.5 4.75 2.5
+      Z
+    " />
+
+    {/* Fold line */}
+    <path d="M2.9 12.2H6.5C7.3 12.2 7.75 12.65 7.75 13.45V17" />
+  </g>,
+  modifiedTablerIconProps,
+);
 
 // tabler-icons: present
 export const PlusPromoIcon = createIcon(

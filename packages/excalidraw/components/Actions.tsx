@@ -82,6 +82,8 @@ import {
   DotsHorizontalIcon,
   SelectionIcon,
   pencilIcon,
+  ReactionIcon,
+  CommentIcon,
 } from "./icons";
 
 import { Island } from "./Island";
@@ -1180,6 +1182,33 @@ export const ShapesSwitcher = ({
           );
         },
       )}
+      {/* Extra buttons adjacent to the shapes toolbar (e.g., beside stickynote) */}
+      <ToolButton
+        type="icon"
+        icon={CommentIcon}
+        aria-label={t("toolBar.comment")}
+        title={t("toolBar.comment")}
+        onClick={() => {
+          const ev = new CustomEvent("excalidraw:startCreateCommentPin", {
+            bubbles: true,
+            detail: {},
+          });
+          window.dispatchEvent(ev);
+        }}
+      />
+      <ToolButton
+        type="icon"
+        icon={ReactionIcon}
+        aria-label={t("toolBar.reactions")}
+        title={t("toolBar.reactions")}
+        onClick={() => {
+          const ev = new CustomEvent("excalidraw:openReactionsPicker", {
+            bubbles: true,
+            detail: {},
+          });
+          window.dispatchEvent(ev);
+        }}
+      />
       <div className="App-toolbar__divider" />
 
       <DropdownMenu open={isExtraToolsMenuOpen}>

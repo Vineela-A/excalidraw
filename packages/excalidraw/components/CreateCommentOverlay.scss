@@ -1,0 +1,40 @@
+.create-comment-overlay {
+  position: absolute;
+  z-index: 10000;
+  transform: translate(-8px, -24px);
+}
+.create-comment-input {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255,255,255,0.98);
+  border-radius: 18px;
+  padding: 8px 12px;
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.12);
+  min-width: 280px;
+  max-width: 420px;
+}
+.create-comment-field {
+  border: none;
+  outline: none;
+  flex: 1 1 auto;
+  font-size: 14px;
+  color: #111827;
+  background: transparent;
+  padding: 4px 0;
+}
+.create-comment-emoji,
+.create-comment-send {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.create-comment-emoji svg,
+.create-comment-send svg {
+  display: block;
+}
+

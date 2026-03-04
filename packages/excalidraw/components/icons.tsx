@@ -169,6 +169,25 @@ export const PinIcon = createIcon(
   tablerIconProps,
 );
 
+// simple reaction (smiley) icon
+export const ReactionIcon = createIcon(
+  <g strokeWidth={1.25} fill="none">
+    <circle cx="12" cy="12" r="9" stroke="currentColor" />
+    <path d="M8.5 10.5c.75 1 2 1 3 1s2.25-.05 3-.9" stroke="currentColor" />
+    <circle cx="9" cy="10" r="1" fill="currentColor" />
+    <circle cx="15" cy="10" r="1" fill="currentColor" />
+  </g>,
+  modifiedTablerIconProps,
+);
+
+// simple comment (speech bubble) icon
+export const CommentIcon = createIcon(
+  <g strokeWidth={1.25} fill="none">
+    <path d="M5 7a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v4a5 5 0 0 1-5 5H11l-4 3v-3H8" stroke="currentColor" />
+  </g>,
+  modifiedTablerIconProps,
+);
+
 export const polygonIcon = createIcon(
   <g strokeWidth={1.25}>
     <path stroke="none" d="M0 0h24v24H0z" fill="none" />

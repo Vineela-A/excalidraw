@@ -16,6 +16,12 @@ import "./css/app.scss";
 import "./css/styles.scss";
 import "./fonts/fonts.css";
 
+// attach dev helpers when running in dev mode (helps debugging from main folder)
+if (typeof import.meta !== "undefined" && (import.meta as any).env?.DEV) {
+  // dynamic import so prod bundles are not affected
+  import("./dev/devHelpers");
+}
+
 import type { AppProps, ExcalidrawProps } from "./types";
 
 polyfill();

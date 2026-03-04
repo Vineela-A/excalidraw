@@ -1,4 +1,5 @@
 import { defineConfig } from "vite";
+import { fileURLToPath, URL } from "url";
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -15,5 +16,15 @@ export default defineConfig({
       target: "es2022",
       treeShaking: true,
     },
+  },
+  resolve: {
+    alias: [
+      { find: "@excalidraw/common", replacement: fileURLToPath(new URL("../../packages/common/src", import.meta.url)) },
+      { find: "@excalidraw/element", replacement: fileURLToPath(new URL("../../packages/element/src", import.meta.url)) },
+      { find: "@excalidraw/math", replacement: fileURLToPath(new URL("../../packages/math/src", import.meta.url)) },
+      { find: "@excalidraw/utils", replacement: fileURLToPath(new URL("../../packages/utils/src", import.meta.url)) },
+      // packages/excalidraw doesn't have a top-level `src` directory; point to package root
+      { find: "@excalidraw/excalidraw", replacement: fileURLToPath(new URL("../../packages/excalidraw", import.meta.url)) },
+    ],
   },
 });

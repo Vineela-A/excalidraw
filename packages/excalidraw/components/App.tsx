@@ -419,6 +419,9 @@ import { ElementCanvasButtons } from "../components/ElementCanvasButtons";
 import { LaserTrails } from "../laser-trails";
 import { withBatchedUpdates, withBatchedUpdatesThrottled } from "../reactUtils";
 import { textWysiwyg } from "../wysiwyg/textWysiwyg";
+import ReactionsOverlay from "./ReactionsOverlay";
+import CommentPinsOverlay from "./CommentPinsOverlay";
+import CreateCommentOverlay from "./CreateCommentOverlay";
 import { isOverScrollBars } from "../scene/scrollbars";
 
 import { isMaybeMermaidDefinition } from "../mermaid";
@@ -837,6 +840,18 @@ class App extends React.Component<AppProps, AppState> {
       } as const;
       if (typeof excalidrawAPI === "function") {
         excalidrawAPI(api);
+        // expose the internal API for local dev debugging
+        try {
+          // @ts-ignore
+          if (typeof import.meta !== "undefined" && (import.meta as any).env?.DEV) {
+            // @ts-ignore
+            window.__excalidrawAPI = api;
+            // @ts-ignore
+            window.__pushExcalidrawDevLog?.("excalidrawAPI exposed on window");
+          }
+        } catch (e) {
+          // ignore
+        }
       } else {
         console.error("excalidrawAPI should be a function!");
       }
@@ -2395,6 +2410,9 @@ class App extends React.Component<AppProps, AppState> {
                             })()
                           )}
                       </ExcalidrawActionManagerContext.Provider>
+                      <ReactionsOverlay />
+                      <CommentPinsOverlay />
+                      <CreateCommentOverlay />
                       {this.renderEmbeddables()}
                     </ExcalidrawElementsContext.Provider>
                   </ExcalidrawAppStateContext.Provider>

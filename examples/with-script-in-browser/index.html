@@ -20,12 +20,7 @@
     <noscript> You need to enable JavaScript to run this app. </noscript>
     <div id="root"></div>
 
-    <script type="module">
-      import * as ExcalidrawLib from "@excalidraw/excalidraw";
-
-      console.log(ExcalidrawLib);
-      window.ExcalidrawLib = ExcalidrawLib;
-    </script>
+    <!-- Excalidraw lib will be imported from index.tsx to ensure a single module instance -->
     <script type="module" src="index.tsx"></script>
   </body>
 </html>

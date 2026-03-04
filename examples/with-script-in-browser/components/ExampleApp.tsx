@@ -116,6 +116,24 @@ export default function ExampleApp({
     {},
   );
   const [comment, setComment] = useState<Comment | null>(null);
+  const [threads, setThreads] = useState<{
+    [elementId: string]: {
+      id: string;
+      elementId: string;
+      x: number;
+      y: number;
+      comments: { id: string; value: string; created: number }[];
+    };
+  }>({});
+  const [openThreadElementId, setOpenThreadElementId] = useState<string | null>(null);
+  const [uiLogs, setUiLogs] = useState<string[]>([]);
+
+  const pushUiLog = (msg: string) => {
+    setUiLogs((prev) => {
+      const next = [...prev.slice(-20), `${new Date().toLocaleTimeString()}: ${msg}`];
+      return next;
+    });
+  };
 
   const initialStatePromiseRef = useRef<{
     promise: ResolvablePromise<ExcalidrawInitialDataState | null>;
@@ -127,6 +145,16 @@ export default function ExampleApp({
 
   const [excalidrawAPI, setExcalidrawAPI] =
     useState<ExcalidrawImperativeAPI | null>(null);
+
+  useEffect(() => {
+    pushUiLog("ExampleApp mounted");
+  }, []);
+
+  const setExcalidrawAPIWithLog = (api: ExcalidrawImperativeAPI) => {
+    setExcalidrawAPI(api);
+    pushUiLog("excalidrawAPI set");
+    console.log("excalidrawAPI set", api);
+  };
 
   useCustom(excalidrawAPI, customArgs);
 
@@ -164,6 +192,54 @@ export default function ExampleApp({
     fetchData();
   }, [excalidrawAPI, convertToExcalidrawElements, MIME_TYPES]);
 
+  // Listen for createCommentPin events dispatched by the editor UI
+  useEffect(() => {
+    if (!excalidrawAPI) return;
+    const handler = (ev: any) => {
+      const detail = ev.detail || {};
+      const elementId = detail.elementId;
+      if (!elementId) return;
+      const sceneX = detail.sceneX ?? detail.x;
+      const sceneY = detail.sceneY ?? detail.y;
+      const text = detail.text ?? "";
+      const id = nanoid();
+      // keep a flat pin map for positioning
+      setCommentIcons((prev) => ({
+        ...prev,
+        [id]: { x: sceneX, y: sceneY, id, value: text, elementId },
+      }));
+      // add to threads
+      setThreads((prev) => {
+        const existing = prev[elementId];
+        const commentObj = { id, value: text, created: Date.now() };
+        if (existing) {
+          return {
+            ...prev,
+            [elementId]: {
+              ...existing,
+              comments: [...existing.comments, commentObj],
+            },
+          };
+        }
+        return {
+          ...prev,
+          [elementId]: {
+            id: nanoid(),
+            elementId,
+            x: sceneX,
+            y: sceneY,
+            comments: [commentObj],
+          },
+        };
+      });
+      const evMsg = `event: createCommentPin elementId=${elementId} scene=(${sceneX},${sceneY}) text=${text} id=${id}`;
+      console.log(evMsg, { elementId, sceneX, sceneY, text, id });
+      pushUiLog(evMsg);
+    };
+    window.addEventListener("excalidraw:createCommentPin", handler as any);
+    return () => window.removeEventListener("excalidraw:createCommentPin", handler as any);
+  }, [excalidrawAPI]);
+
   const renderExcalidraw = (children: React.ReactNode) => {
     const Excalidraw: any = Children.toArray(children).find(
       (child) =>
@@ -178,7 +254,7 @@ export default function ExampleApp({
     const newElement = cloneElement(
       Excalidraw,
       {
-        excalidrawAPI: (api: ExcalidrawImperativeAPI) => setExcalidrawAPI(api),
+        excalidrawAPI: (api: ExcalidrawImperativeAPI) => setExcalidrawAPIWithLog(api),
         initialData: initialStatePromiseRef.current.promise,
         onChange: (
           elements: NonDeletedExcalidrawElement[],
@@ -390,6 +466,9 @@ export default function ExampleApp({
   ) => {
     if (activeTool.type === "custom" && activeTool.customType === "comment") {
       const { x, y } = pointerDownState.origin;
+      const msg = `onPointerDown start comment at (${x},${y})`;
+      console.log(msg, { x, y });
+      pushUiLog(msg);
       setComment({ x, y, value: "" });
     }
   };
@@ -404,18 +483,43 @@ export default function ExampleApp({
     commentIconsElements.forEach((ele) => {
       const id = ele.id;
       const appstate = excalidrawAPI.getAppState();
+      // support icons that are either from `threads` (thread id) or `commentIcons` (pin id)
+      const pin = commentIcons[id];
+      const thread = threads[id] ?? (pin ? threads[pin.elementId] : undefined);
+      const sceneX = thread ? thread.x : pin ? pin.x : 0;
+      const sceneY = thread ? thread.y : pin ? pin.y : 0;
       const { x, y } = sceneCoordsToViewportCoords(
-        { sceneX: commentIcons[id].x, sceneY: commentIcons[id].y },
+        { sceneX, sceneY },
         appstate,
       );
-      ele.style.left = `${
-        x - COMMENT_ICON_DIMENSION / 2 - appstate!.offsetLeft
-      }px`;
-      ele.style.top = `${
-        y - COMMENT_ICON_DIMENSION / 2 - appstate!.offsetTop
-      }px`;
+      ele.style.left = `${x - COMMENT_ICON_DIMENSION / 2 - appstate!.offsetLeft}px`;
+      ele.style.top = `${y - COMMENT_ICON_DIMENSION / 2 - appstate!.offsetTop}px`;
     });
   };
+
+  // debug helper: log current threads and pins
+  const logCommentState = () => {
+    console.log("comment state", {
+      threadsCount: Object.keys(threads).length,
+      pinsCount: Object.keys(commentIcons).length,
+      threads,
+      commentIcons,
+    });
+  };
+
+  // expose debug helpers to window for desktop inspection
+  useEffect(() => {
+    // @ts-ignore
+    window.logCommentState = logCommentState;
+    // @ts-ignore
+    window.getCommentState = () => ({ threads, commentIcons });
+    return () => {
+      // @ts-ignore
+      delete window.logCommentState;
+      // @ts-ignore
+      delete window.getCommentState;
+    };
+  }, [threads, commentIcons]);
 
   const onPointerMoveFromPointerDownHandler = (
     pointerDownState: PointerDownState,
@@ -431,14 +535,14 @@ export default function ExampleApp({
         },
         excalidrawAPI.getAppState(),
       );
-      setCommentIcons({
-        ...commentIcons,
+      setCommentIcons((prev) => ({
+        ...prev,
         [pointerDownState.hitElement.id!]: {
-          ...commentIcons[pointerDownState.hitElement.id!],
+          ...(prev[pointerDownState.hitElement.id!] || {}),
           x,
           y,
         },
-      });
+      }));
     });
   };
   const onPointerUpFromPointerDownHandler = (
@@ -470,24 +574,37 @@ export default function ExampleApp({
   };
 
   const renderCommentIcons = () => {
-    return Object.values(commentIcons).map((commentIcon) => {
-      if (!excalidrawAPI) {
-        return false;
-      }
-      const appState = excalidrawAPI.getAppState();
-      const { x, y } = sceneCoordsToViewportCoords(
-        { sceneX: commentIcon.x, sceneY: commentIcon.y },
-        excalidrawAPI.getAppState(),
-      );
-      return (
+    // Render pins from both threads (grouped by element) and standalone commentIcons
+      const msg = "renderCommentIcons: excalidrawAPI not available yet";
+      console.log(msg, { threads, commentIcons });
+      pushUiLog(msg);
+      pushUiLog(msg);
+      return null;
+    }
+
+    const appState = excalidrawAPI.getAppState();
+    const out: React.ReactNode[] = [];
+
+    const threadsList = Object.values(threads);
+    threadsList.forEach((thread) => {
+      const commentIcon: any = {
+        id: thread.id,
+        x: thread.x,
+        y: thread.y,
+        value: thread.comments[0]?.value ?? "",
+        elementId: thread.elementId,
+      };
+      const { x, y } = sceneCoordsToViewportCoords({ sceneX: commentIcon.x, sceneY: commentIcon.y }, appState);
+      out.push(
         <div
           id={commentIcon.id}
-          key={commentIcon.id}
+          key={`thread-${commentIcon.id}`}
           style={{
-            top: `${y - COMMENT_ICON_DIMENSION / 2 - appState!.offsetTop}px`,
-            left: `${x - COMMENT_ICON_DIMENSION / 2 - appState!.offsetLeft}px`,
+            top: `${y - COMMENT_ICON_DIMENSION / 2 - appState.offsetTop}px`,
+            left: `${x - COMMENT_ICON_DIMENSION / 2 - appState.offsetLeft}px`,
             position: "absolute",
-            zIndex: 1,
+            zIndex: 99999,
+            pointerEvents: "auto",
             width: `${COMMENT_ICON_DIMENSION}px`,
             height: `${COMMENT_ICON_DIMENSION}px`,
             cursor: "pointer",
@@ -496,38 +613,55 @@ export default function ExampleApp({
           className="comment-icon"
           onPointerDown={(event) => {
             event.preventDefault();
-            if (comment) {
-              commentIcon.value = comment.value;
-              saveComment();
-            }
-            const pointerDownState: any = {
-              x: event.clientX,
-              y: event.clientY,
-              hitElement: commentIcon,
-              hitElementOffsets: { x: event.clientX - x, y: event.clientY - y },
-            };
-            const onPointerMove =
-              onPointerMoveFromPointerDownHandler(pointerDownState);
-            const onPointerUp =
-              onPointerUpFromPointerDownHandler(pointerDownState);
-            window.addEventListener("pointermove", onPointerMove);
-            window.addEventListener("pointerup", onPointerUp);
-
-            pointerDownState.onMove = onPointerMove;
-            pointerDownState.onUp = onPointerUp;
-
-            excalidrawAPI?.setActiveTool({
-              type: "custom",
-              customType: "comment",
-            });
+            const eid = thread.elementId || thread.id;
+            setOpenThreadElementId((prev) => (prev === eid ? null : eid));
           }}
         >
           <div className="comment-avatar">
-            <img src="images/doremon.png" alt="doremon" />
+            <div className="comment-avatar-initial">
+              {commentIcon.value ? commentIcon.value.trim()[0].toUpperCase() : commentIcon.id?.[0]?.toUpperCase()}
+            </div>
           </div>
-        </div>
+        </div>,
       );
     });
+
+    // commentIcons (individual pins not yet aggregated into threads)
+    Object.values(commentIcons).forEach((ci: any) => {
+      const { x: sceneX, y: sceneY, id } = ci;
+      const { x, y } = sceneCoordsToViewportCoords({ sceneX, sceneY }, appState);
+      out.push(
+        <div
+          id={id}
+          key={`pin-${id}`}
+          style={{
+            top: `${y - COMMENT_ICON_DIMENSION / 2 - appState.offsetTop}px`,
+            left: `${x - COMMENT_ICON_DIMENSION / 2 - appState.offsetLeft}px`,
+            position: "absolute",
+            zIndex: 99999,
+            pointerEvents: "auto",
+            width: `${COMMENT_ICON_DIMENSION}px`,
+            height: `${COMMENT_ICON_DIMENSION}px`,
+            cursor: "pointer",
+            touchAction: "none",
+          }}
+          className="comment-icon"
+          onPointerDown={(event) => {
+            event.preventDefault();
+            const eid = ci.elementId || id;
+            setOpenThreadElementId((prev) => (prev === eid ? null : eid));
+          }}
+        >
+          <div className="comment-avatar">
+            <div className="comment-avatar-initial">
+              {ci.value ? ci.value.trim()[0].toUpperCase() : id?.[0]?.toUpperCase()}
+            </div>
+          </div>
+        </div>,
+      );
+    });
+
+    return out;
   };
 
   const saveComment = () => {
@@ -539,15 +673,121 @@ export default function ExampleApp({
       return;
     }
     const id = comment.id || nanoid();
-    setCommentIcons({
-      ...commentIcons,
+    // Determine if this comment should be attached to an existing scene element
+    let targetElementId: string | undefined = undefined;
+    try {
+      const elements = excalidrawAPI?.getSceneElements() ?? [];
+      for (const el of elements) {
+        if (
+          typeof el.x === "number" &&
+          typeof el.y === "number" &&
+          typeof (el as any).width === "number" &&
+          typeof (el as any).height === "number"
+        ) {
+          const ex = el.x;
+          const ey = el.y;
+          const ew = (el as any).width;
+          const eh = (el as any).height;
+          if (
+            comment.x >= ex &&
+            comment.x <= ex + ew &&
+            comment.y >= ey &&
+            comment.y <= ey + eh
+          ) {
+            targetElementId = el.id;
+            break;
+          }
+        }
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // use functional update to avoid stale closure
+    setCommentIcons((prev) => ({
+      ...prev,
       [id]: {
         x: comment.id ? comment.x - 60 : comment.x,
         y: comment.y,
         id,
         value: comment.value,
+        ...(targetElementId ? { elementId: targetElementId } : {}),
       },
-    });
+    }));
+    const pinMsg = `saveComment: added pin id=${id} targetElementId=${targetElementId}`;
+    console.log(pinMsg, { id, targetElementId, comment });
+    pushUiLog(pinMsg);
+
+    // flash a small visual indicator so users see a save happened even if logs are hidden
+    try {
+      const rootEl = appRef.current as HTMLElement | null;
+      if (rootEl) {
+        const flash = document.createElement("div");
+        flash.textContent = "Saved";
+        flash.style.position = "fixed";
+        flash.style.right = "12px";
+        flash.style.bottom = "12px";
+        flash.style.background = "#059669";
+        flash.style.color = "white";
+        flash.style.padding = "8px 12px";
+        flash.style.borderRadius = "6px";
+        flash.style.zIndex = "9999999999";
+        rootEl.appendChild(flash);
+        setTimeout(() => flash.remove(), 1800);
+      }
+    } catch (e) {
+      // ignore
+    }
+
+    // Also add to threads so multiple comments per element are preserved
+    const commentObj = { id, value: comment.value || "", created: Date.now() };
+    if (targetElementId) {
+      setThreads((prev) => {
+        const existing = prev[targetElementId!];
+        if (existing) {
+          return {
+            ...prev,
+            [targetElementId!]: {
+              ...existing,
+              comments: [...existing.comments, commentObj],
+            },
+          };
+        }
+        return {
+          ...prev,
+          [targetElementId!]: {
+            id: nanoid(),
+            elementId: targetElementId!,
+            x: comment.x,
+            y: comment.y,
+            comments: [commentObj],
+          },
+        };
+      });
+      const thrMsg = `saveComment: threads updated for target ${targetElementId}`;
+      console.log(thrMsg, targetElementId);
+      pushUiLog(thrMsg);
+      // open the thread overlay for the element we just commented on
+      setOpenThreadElementId(targetElementId);
+    } else {
+      // create a standalone thread keyed by the comment icon id
+      setThreads((prev) => ({
+        ...prev,
+        [id]: {
+          id,
+          elementId: id,
+          x: comment.x,
+          y: comment.y,
+          comments: [commentObj],
+        },
+      }));
+      const thrMsg2 = `saveComment: created standalone thread ${id}`;
+      console.log(thrMsg2, id);
+      pushUiLog(thrMsg2);
+      // open the standalone thread we just created
+      setOpenThreadElementId(id);
+    }
+
     setComment(null);
   };
 
@@ -585,6 +825,8 @@ export default function ExampleApp({
     return (
       <textarea
         className="comment"
+        id="comment-textarea"
+        name="comment"
         style={{
           top: `${top}px`,
           left: `${left}px`,
@@ -609,6 +851,128 @@ export default function ExampleApp({
           }
         }}
       />
+    );
+  };
+
+  const onOpenThread = (ev: any) => {
+    const elementId = ev.detail?.elementId;
+    if (!elementId) return;
+    setOpenThreadElementId(elementId);
+  };
+
+  useEffect(() => {
+    window.addEventListener("excalidraw:openCommentThread", onOpenThread as any);
+    return () => window.removeEventListener("excalidraw:openCommentThread", onOpenThread as any);
+  }, []);
+
+  const submitReply = (elementId: string, value: string) => {
+    if (!value.trim()) return;
+    const id = nanoid();
+    setThreads((prev) => {
+      const t = prev[elementId];
+      if (!t) return prev;
+      return {
+        ...prev,
+        [elementId]: {
+          ...t,
+          comments: [...t.comments, { id, value: value.trim(), created: Date.now() }],
+        },
+      };
+    });
+  };
+
+  const renderThreadOverlay = () => {
+    if (!openThreadElementId || !excalidrawAPI) return null;
+    const thread = threads[openThreadElementId];
+    if (!thread) return null;
+    const appState = excalidrawAPI.getAppState();
+    const { x, y } = sceneCoordsToViewportCoords(
+      { sceneX: thread.x, sceneY: thread.y },
+      appState,
+    );
+    let top = y - COMMENT_ICON_DIMENSION / 2 - appState.offsetTop;
+    let left = x - COMMENT_ICON_DIMENSION / 2 - appState.offsetLeft;
+
+    const THREAD_W = 300;
+    const THREAD_H = 200;
+    if (top + THREAD_H > appState.height) {
+      top = appState.height - THREAD_H - 12;
+    }
+    if (left + THREAD_W > appState.width) {
+      left = appState.width - THREAD_W - 12;
+    }
+
+    return (
+      <div
+        className="comment-thread-overlay"
+        style={{
+          position: "absolute",
+          zIndex: 100000,
+          // allow pointer events to pass through to the canvas except for the interactive card
+          pointerEvents: "none",
+          top: `${top}px`,
+          left: `${left}px`,
+          width: `${THREAD_W}px`,
+          maxHeight: `${THREAD_H}px`,
+        }}
+      >
+        <div className="thread-card" style={{ pointerEvents: "auto" }}>
+          <div className="thread-header">
+            <div className="thread-resolve">
+              <label className="switch">
+                <input type="checkbox" />
+                <span className="slider" />
+              </label>
+              <span className="resolve-label">Resolve</span>
+            </div>
+            <div className="thread-actions">
+              <span className="color-dot" style={{ background: "#9be564" }} />
+              <span className="color-dot" style={{ background: "#ff4d4f" }} />
+              <span className="color-dot" style={{ background: "#45b8ff" }} />
+              <span className="color-dot" style={{ background: "#000" }} />
+              <button className="bell">🔔</button>
+              <button className="more">⋯</button>
+            </div>
+          </div>
+
+          <div className="thread-messages">
+            {thread.comments.map((c) => (
+              <div key={c.id} className="thread-message">
+                <div className="thread-message-left">
+                  <div className="thread-avatar">
+                    <div className="comment-avatar-initial">
+                      {c.value ? c.value.trim()[0]?.toUpperCase() : "V"}
+                    </div>
+                  </div>
+                </div>
+                <div className="thread-message-right">
+                  <div className="message-meta">
+                    <div className="author">Vineela Appasani</div>
+                    <div className="time">Today, 16:12</div>
+                  </div>
+                  <div className="message-body">{c.value}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="thread-reply">
+            <input
+                id="thread-reply-input"
+                name="thread-reply"
+                placeholder="Leave a reply. Use @ to mention."
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  const val = (e.target as HTMLInputElement).value;
+                  submitReply(openThreadElementId, val);
+                  (e.target as HTMLInputElement).value = "";
+                }
+              }}
+            />
+            <button className="reply-send">➤</button>
+          </div>
+        </div>
+      </div>
     );
   };
 
@@ -649,6 +1013,34 @@ export default function ExampleApp({
   return (
     <div className="App" ref={appRef}>
       <h1>{appTitle}</h1>
+      {/* Debug badge: shows counts of threads/comment icons */}
+      <div
+        style={{
+          position: "fixed",
+          right: 12,
+          top: 12,
+          zIndex: 2147483647,
+          background: "rgba(0,0,0,0.7)",
+          color: "white",
+          padding: "6px 10px",
+          borderRadius: 6,
+          fontSize: 12,
+        }}
+        id="debug-comment-badge"
+      >
+        Threads: {Object.keys(threads).length} • Pins: {Object.keys(commentIcons).length}
+      </div>
+      {/* In-app visible logs for debugging when console logs aren't visible */}
+      <div className="in-app-logs" role="status" aria-live="polite">
+        <div className="in-app-logs__title">Logs</div>
+        <div className="in-app-logs__lines">
+          {uiLogs.slice(-8).reverse().map((l, i) => (
+            <div key={i} className="in-app-logs__line">
+              {l}
+            </div>
+          ))}
+        </div>
+      </div>
       {/* TODO fix type */}
       <ExampleSidebar>
         <div className="button-wrapper">
@@ -799,8 +1191,9 @@ export default function ExampleApp({
         </div>
         <div className="excalidraw-wrapper">
           {renderExcalidraw(children)}
-          {Object.keys(commentIcons || []).length > 0 && renderCommentIcons()}
-          {comment && renderComment()}
+          {(Object.keys(commentIcons || []).length > 0 || Object.keys(threads).length > 0) && renderCommentIcons()}
+            {comment && renderComment()}
+            {renderThreadOverlay()}
         </div>
 
         <div className="export-wrapper button-wrapper">

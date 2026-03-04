@@ -302,6 +302,8 @@
     "ellipse": "Ellipse",
     "arrow": "Arrow",
     "stickynote": "Sticky Note",
+    "comment": "Comment",
+    "reactions": "Reactions",
     "line": "Line",
     "freedraw": "Draw",
     "text": "Text",

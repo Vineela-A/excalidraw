@@ -85,6 +85,19 @@ type _ExcalidrawElementBase = Readonly<{
   customData?: Record<string, any>;
 }>;
 
+/**
+ * Map of reactions attached to an element via `customData.reactions`.
+ * Example:
+ * {
+ *   "👍": { users: ["user1", "user2"] },
+ * }
+ */
+export type ReactionMap = {
+  [emoji: string]: {
+    users: string[];
+  };
+};
+
 
 export type ExcalidrawStickynoteElement = _ExcalidrawElementBase & 
   {

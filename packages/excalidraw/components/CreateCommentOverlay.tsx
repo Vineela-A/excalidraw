@@ -79,6 +79,40 @@ const CreateCommentOverlay: React.FC = () => {
       },
     });
     window.dispatchEvent(ev);
+    // persist a lightweight flag on the element so comment pins survive
+    // save/load round-trips (`customData.commentPin = true`)
+    try {
+      const hitId = hitElementIdRef.current;
+      if (hitId) {
+        const elementsMap = app.scene.getElementsMapIncludingDeleted();
+        const el = elementsMap.get(hitId);
+        if (el) {
+          const existing = (el.customData as any) || {};
+          const comment = {
+            id: `c-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+            text: text.trim(),
+            author: "",
+            time: Date.now(),
+          };
+          // support multiple pins per element: store as `commentPins` array
+          const existingPins = Array.isArray(existing.commentPins) ? existing.commentPins : [];
+          const newPin = {
+            id: `p-${Date.now()}-${Math.floor(Math.random() * 10000)}`,
+            sceneX: pos.sceneX,
+            sceneY: pos.sceneY,
+            comments: [comment],
+          };
+          const next = {
+            ...existing,
+            commentPin: true,
+            commentPins: [...existingPins, newPin],
+          };
+          app.scene.mutateElement(el, { customData: next });
+        }
+      }
+    } catch (e) {
+      // ignore persistence errors
+    }
     setPos(null);
     setText("");
     hitElementIdRef.current = null;

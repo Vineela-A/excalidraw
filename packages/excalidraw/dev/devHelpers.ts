@@ -1,6 +1,7 @@
 // Dev helpers for local debugging in the main app
 /* eslint-disable no-console */
 import { sceneCoordsToViewportCoords } from "@excalidraw/common";
+import { EMOJI_LIST, SMILE_PLUS_SVG, SPEECH_DATA_URL  } from "../src/commentConstants";
 function ensureWindow() {
   const w = window as any;
   if (!w.__excalidrawDevLogs) {
@@ -13,6 +14,9 @@ function ensureWindow() {
     };
   }
   if (!w.getExcalidrawDevLogs) {
+    const pins = new Map<string, { id: string; sceneX: number; sceneY: number; text: string; elementId?: string; author?: string; replies?: Array<{ id: string; text: string; author?: string; time: number; reactions?: { [emoji: string]: number } }>; reactions?: { [emoji: string]: number } }>();
+    const pinNodes = new Map<string, HTMLElement>();
+    let currentPinTooltip: HTMLElement | null = null;
     w.getExcalidrawDevLogs = () => w.__excalidrawDevLogs.slice().reverse();
   }
   if (!w.__excalidrawRecentEmojis) {
@@ -48,18 +52,6 @@ const SPEECH_SVG = `
   </g>
 </svg>
 `;
-const SPEECH_DATA_URL = `data:image/svg+xml;utf8,${encodeURIComponent(SPEECH_SVG)}`;
-
-// Larger emoji set used by the lightweight picker
-const EMOJI_LIST = [
-  "😀","😃","😄","😁","😆","😅","😂","🤣","😊","🙂",
-  "🙃","😉","😍","😘","😚","😋","😜","😝","😛","🫠",
-  "🤗","🤩","🤔","🤨","😐","😑","😶","😏","😒","🙄",
-  "😬","😴","😪","😓","😥","😰","😢","😭","😠","😡",
-  "🤬","🤯","😳","🥰","🤤","🤮","🤢","🤧","😷","🤒",
-  "👍","👎","👏","🙏","💪","✌️","🤝","❤️","💔","🎉",
-  "🔥","💯","⭐","🌟","✨","🎈","🎁","🏆","🥇","🥳"
-];
 
 function flashSaved() {
   try {
@@ -167,6 +159,32 @@ function ensurePinsRendered() {
   } catch (e) {}
 }
 
+// persist dev pins to localStorage so they survive page reloads
+const PINS_STORAGE_KEY = "__excalidraw_dev_pins_v1";
+
+function savePinsToStorage() {
+  try {
+    const arr = Array.from(pins.values());
+    localStorage.setItem(PINS_STORAGE_KEY, JSON.stringify(arr));
+  } catch (e) {
+    // ignore
+  }
+}
+
+function loadPinsFromStorage() {
+  try {
+    const raw = localStorage.getItem(PINS_STORAGE_KEY);
+    if (!raw) return;
+    const arr = JSON.parse(raw) as any[];
+    for (const p of arr) {
+      if (p && p.id) {
+        pins.set(p.id, p);
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
+}
 function attachPinNode(id: string, node?: HTMLElement) {
   const root = document.getElementById("excalidraw-dev-pins-root")!;
   let n = node;
@@ -569,35 +587,7 @@ function showThreadOverlayForPin(id: string) {
   actions.style.flex = "0 0 auto";
 
   const reactBtn = document.createElement("div");
-  // smiley + add reaction SVG
-  const SMILE_PLUS_SVG = `
-<svg xmlns="http://www.w3.org/2000/svg"
-     viewBox="0 0 24 24"
-     width="24"
-     height="24"
-     fill="none"
-     stroke="#8A8F98"
-     stroke-width="2"
-     stroke-linecap="round"
-     stroke-linejoin="round">
-
-  <!-- Circle with gap at top-right -->
-  <path d="M4 12a8 8 0 0 1 14-5"/>
-  <path d="M20 12a8 8 0 0 1-8 8a8 8 0 0 1-8-8"/>
-
-  <!-- Eyes -->
-  <circle cx="9" cy="10" r="1" fill="#8A8F98" stroke="none"/>
-  <circle cx="13" cy="10" r="1" fill="#8A8F98" stroke="none"/>
-
-  <!-- Smile -->
-  <path d="M9 14c1.4 1.2 3.6 1.2 5 0"/>
-
-  <!-- Plus -->
-  <line x1="18" y1="4" x2="18" y2="8"/>
-  <line x1="16" y1="6" x2="20" y2="6"/>
-
-</svg>
-`;
+  
   reactBtn.innerHTML = SMILE_PLUS_SVG;
   reactBtn.style.width = "32px";
   reactBtn.style.height = "32px";
@@ -1168,6 +1158,7 @@ function onCreateCommentPin(ev: any) {
       ensurePinsRendered();
       const id = detail.id ?? `devpin-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
       pins.set(id, { id, sceneX, sceneY, text, elementId, author, replies: [], reactions: {} });
+      savePinsToStorage();
       renderAllPins(api);
     }
   } catch (e) {

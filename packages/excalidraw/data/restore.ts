@@ -409,6 +409,31 @@ export const restoreElement = (
       }
 
       return element;
+    case "stickynote": {
+      let fontSize = (element as any).fontSize;
+      let fontFamily = (element as any).fontFamily;
+      if ("font" in element) {
+        const [fontPx, _fontFamily]: [string, string] = (element as any).font.split(" ");
+        fontSize = parseFloat(fontPx);
+        fontFamily = getFontFamilyByName(_fontFamily);
+      }
+      const text = (typeof (element as any).text === "string" && (element as any).text) || "";
+
+      const lineHeight =
+        (element as any).lineHeight ||
+        // stickynotes carry branded unitless lineHeight, fall back to detected/default
+        getLineHeight((element as any).fontFamily);
+
+      return restoreElementWithProperties(element as any, {
+        fontSize,
+        fontFamily,
+        text,
+        textAlign: (element as any).textAlign || DEFAULT_TEXT_ALIGN,
+        verticalAlign: (element as any).verticalAlign || DEFAULT_VERTICAL_ALIGN,
+        originalText: (element as any).originalText || text,
+        lineHeight,
+      });
+    }
     case "freedraw": {
       return restoreElementWithProperties(element, {
         points: element.points,

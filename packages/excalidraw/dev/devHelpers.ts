@@ -1,7 +1,8 @@
 // Dev helpers for local debugging in the main app
 /* eslint-disable no-console */
 import { sceneCoordsToViewportCoords } from "@excalidraw/common";
-import { EMOJI_LIST, SMILE_PLUS_SVG, SPEECH_DATA_URL  } from "../src/commentConstants";
+import { EMOJI_LIST, SMILE_PLUS_SVG, SPEECH_SVG, SPEECH_DATA_URL, COMMENT_FONT_FAMILY, COMMENT_FONT_SIZE_XS, COMMENT_FONT_SIZE_SM, COMMENT_FONT_SIZE_XL, COMMENT_FONT_SIZE, COMMENT_FONT_SIZE_LG, COMMENT_FONT_SIZE_MD, COMMENT_ACCENT_COLOR, COMMENT_REPLY_AVATAR_SIZE, COMMENT_AVATAR_SIZE } from "../src/commentConstants";
+import { applyBubbleStyles } from "../src/commentBubble";
 function ensureWindow() {
   const w = window as any;
   if (!w.__excalidrawDevLogs) {
@@ -10,6 +11,7 @@ function ensureWindow() {
   if (!w.__pushExcalidrawDevLog) {
     w.__pushExcalidrawDevLog = (s: string) => {
       w.__excalidrawDevLogs.push(`${new Date().toLocaleTimeString()}: ${s}`);
+      
       if (w.__excalidrawDevLogs.length > 50) w.__excalidrawDevLogs.shift();
     };
   }
@@ -37,22 +39,6 @@ function ensureWindow() {
   return w;
 }
 
-// Speech-bubble svg used as pin background (inline data URL)
-const SPEECH_SVG = `
-<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' preserveAspectRatio='xMidYMid meet'>
-  <defs>
-    <filter id='ds' x='-50%' y='-50%' width='200%' height='200%'>
-      <feDropShadow dx='0' dy='2' stdDeviation='3' flood-color='#000' flood-opacity='0.18'/>
-    </filter>
-  </defs>
-  <g filter='url(#ds)'>
-    <circle cx='32' cy='32' r='20' fill='#ffffff'/>
-    <path d='M50 38 L64 44 L50 32 Z' fill='#ffffff' />
-    <circle cx='32' cy='32' r='15' fill='#2CA7B8'/>
-  </g>
-</svg>
-`;
-
 function flashSaved() {
   try {
     const flash = document.createElement("div");
@@ -73,7 +59,7 @@ function flashSaved() {
 }
 
 // Persistent dev pins implementation
-const pins = new Map<string, { id: string; sceneX: number; sceneY: number; text: string; elementId?: string; author?: string; replies?: Array<{ id: string; text: string; author?: string; time: number; reactions?: { [emoji: string]: number } }>; reactions?: { [emoji: string]: number } }>();
+const pins = new Map<string, { id: string; sceneX: number; sceneY: number; text: string; elementId?: string; author?: string; replies?: Array<{ id: string; text: string; author?: string; time: number; reactions?: { [emoji: string]: number } }>; comments?: Array<{ id: string; text: string; author?: string; time: number; reactions?: { [emoji: string]: number } }>; reactions?: { [emoji: string]: number } }>();
 const pinNodes = new Map<string, HTMLElement>();
 let currentPinTooltip: HTMLElement | null = null;
 const DEV_PIN_W = 52;
@@ -91,17 +77,18 @@ function showPinTooltip(id: string, node: HTMLElement) {
   tooltip.style.color = "white";
   tooltip.style.padding = "6px 8px";
   tooltip.style.borderRadius = "6px";
-  tooltip.style.fontSize = "12px";
+  tooltip.style.fontSize = COMMENT_FONT_SIZE_SM;
   tooltip.style.maxWidth = "260px";
   tooltip.style.boxShadow = "0 8px 30px rgba(16,24,40,0.2)";
   tooltip.style.pointerEvents = "none";
+  tooltip.style.fontFamily = COMMENT_FONT_FAMILY;
   const title = document.createElement("div");
   title.style.fontWeight = "600";
   title.style.marginBottom = "4px";
   title.textContent = p.text || "(no comment)";
   const time = document.createElement("div");
   time.style.opacity = "0.85";
-  time.style.fontSize = "11px";
+  time.style.fontSize = COMMENT_FONT_SIZE_XS;
   time.textContent = new Date().toLocaleString();
   tooltip.appendChild(title);
   tooltip.appendChild(time);
@@ -178,6 +165,18 @@ function loadPinsFromStorage() {
     const arr = JSON.parse(raw) as any[];
     for (const p of arr) {
       if (p && p.id) {
+        // normalize legacy shapes so both `replies` and `comments` exist
+        // if there are old `replies` but no `comments`, copy them to `comments`
+        if (!p.comments && Array.isArray(p.replies)) {
+          p.comments = p.replies.map((r: any) => ({ ...r }));
+        }
+        // if there are `comments` saved (newer shape) but no `replies`, copy them
+        if (!p.replies && Array.isArray(p.comments)) {
+          p.replies = p.comments.map((r: any) => ({ ...r }));
+        }
+        // ensure both properties exist as arrays for round-trip edits in dev helpers
+        if (!Array.isArray(p.comments)) p.comments = [];
+        if (!Array.isArray(p.replies)) p.replies = [];
         pins.set(p.id, p);
       }
     }
@@ -247,11 +246,11 @@ function attachPinNode(id: string, node?: HTMLElement) {
       span.style.justifyContent = "center";
       span.style.color = "white";
       span.style.fontWeight = "700";
-      span.style.fontSize = "12px";
+      span.style.fontSize = COMMENT_FONT_SIZE_SM;
       span.style.lineHeight = "22px";
       span.style.textAlign = "center";
       span.style.zIndex = "2147483648";
-      span.style.fontFamily = "Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial";
+      span.style.fontFamily = COMMENT_FONT_FAMILY;
       span.style.pointerEvents = "none";
       n.appendChild(span);
     }
@@ -365,6 +364,10 @@ let currentOverlay: HTMLElement | null = null;
 let currentDocListener: ((ev: PointerEvent) => void) | null = null;
 
 function showThreadOverlayForPin(id: string) {
+  // do not show dev overlay when React comment thread is active
+  try {
+    if ((window as any).__excalidrawReactCommentThreadOpen) return;
+  } catch (e) {}
   try {
     const w = ensureWindow();
     w.__pushExcalidrawDevLog(`showThreadOverlayForPin called id=${id}`);
@@ -378,15 +381,7 @@ function showThreadOverlayForPin(id: string) {
   overlay.className = "excalidraw-dev-thread-overlay";
   overlay.style.position = "absolute";
   overlay.style.zIndex = "2147483647";
-  overlay.style.width = "380px";
-  overlay.style.maxWidth = "calc(100vw - 24px)";
-  overlay.style.background = "white";
-  overlay.style.color = "#111";
-  overlay.style.border = "1px solid rgba(0,0,0,0.08)";
-  overlay.style.borderRadius = "12px";
-  overlay.style.padding = "8px";
-  overlay.style.boxShadow = "0 12px 40px rgba(16,24,40,0.12)";
-  overlay.style.pointerEvents = "auto";
+  applyBubbleStyles(overlay, { width: "380px", maxWidth: "calc(100vw - 24px)", padding: "8px" });
   overlay.style.display = "flex";
   overlay.style.flexDirection = "column";
 
@@ -409,8 +404,76 @@ function showThreadOverlayForPin(id: string) {
   // menu
   const menu = document.createElement("div");
   menu.textContent = "⋯";
-  menu.style.fontSize = "20px";
+  menu.style.fontSize = COMMENT_FONT_SIZE_XL;
   rightHeader.appendChild(menu);
+
+  // menu dropdown (Delete action)
+  menu.style.cursor = "pointer";
+  menu.addEventListener("click", (ev) => {
+    ev.stopPropagation();
+    // if menu already open, remove it
+    const existing = overlay.querySelector('.excalidraw-dev-thread-menu');
+    if (existing) {
+      existing.remove();
+      return;
+    }
+    const menuBox = document.createElement('div');
+    menuBox.className = 'excalidraw-dev-thread-menu';
+    menuBox.style.position = 'absolute';
+    menuBox.style.right = '8px';
+    menuBox.style.top = '28px';
+    menuBox.style.background = '#fff';
+    menuBox.style.border = '1px solid rgba(0,0,0,0.08)';
+    menuBox.style.borderRadius = '8px';
+    menuBox.style.boxShadow = '0 8px 20px rgba(0,0,0,0.12)';
+    menuBox.style.zIndex = '10011';
+    menuBox.style.padding = '6px 8px';
+    menuBox.style.minWidth = '120px';
+    menuBox.style.fontFamily = COMMENT_FONT_FAMILY;
+
+    const del = document.createElement('div');
+    del.textContent = 'Delete';
+    del.style.padding = '8px 6px';
+    del.style.cursor = 'pointer';
+    del.style.color = '#dc2626';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      try {
+        if (!confirm('Delete this comment and all replies?')) return;
+      } catch (e) {}
+      try {
+        // remove from in-memory pins
+        pins.delete(id);
+        // remove DOM pin node if present
+        const node = pinNodes.get(id);
+        if (node && node.parentElement) node.remove();
+        pinNodes.delete(id);
+        // persist
+        try { savePinsToStorage(); } catch (e) {}
+        // try to re-render pins using internal API if available
+        try {
+          // @ts-ignore
+          const api = window.__excalidrawAPI;
+          if (api) renderAllPins(api);
+        } catch (e) {}
+        // close overlay
+        removeThreadOverlay();
+      } catch (err) {
+        // ignore
+      }
+    });
+
+    menuBox.appendChild(del);
+    overlay.appendChild(menuBox);
+    // close menu on outside click
+    const onDoc = (ev2: PointerEvent) => {
+      if (!(menuBox.contains(ev2.target as Node) || menu.contains(ev2.target as Node))) {
+        menuBox.remove();
+        try { document.removeEventListener('pointerdown', onDoc); } catch (e) {}
+      }
+    };
+    setTimeout(() => document.addEventListener('pointerdown', onDoc));
+  });
 
   header.appendChild(leftHeader);
   header.appendChild(rightHeader);
@@ -433,20 +496,20 @@ function showThreadOverlayForPin(id: string) {
 
   // avatar
   const avatarWrap = document.createElement("div");
-  avatarWrap.style.width = "36px";
-  avatarWrap.style.height = "36px";
+  avatarWrap.style.width = `${COMMENT_AVATAR_SIZE}px`;
+  avatarWrap.style.height = `${COMMENT_AVATAR_SIZE}px`;
   avatarWrap.style.borderRadius = "50%";
-  avatarWrap.style.background = "#1FA9B6";
+  avatarWrap.style.background = COMMENT_ACCENT_COLOR;
   avatarWrap.style.display = "flex";
   avatarWrap.style.alignItems = "center";
   avatarWrap.style.justifyContent = "center";
   avatarWrap.style.color = "white";
   avatarWrap.style.fontWeight = "700";
-  avatarWrap.style.fontSize = "14px";
+  avatarWrap.style.fontSize = COMMENT_FONT_SIZE;
   avatarWrap.style.flex = "0 0 auto";
 
   const p = pins.get(id);
-  const initial = (p?.author?.trim()?.charAt(0) ?? p?.text?.trim()?.charAt(0) ?? "V").toUpperCase();
+  const initial = ((p?.author?.trim()?.charAt(0) || "U") as string).toUpperCase();
   avatarWrap.textContent = initial;
 
   const body = document.createElement("div");
@@ -463,7 +526,7 @@ function showThreadOverlayForPin(id: string) {
 
   const when = document.createElement("div");
   when.style.color = "#6b7280";
-  when.style.fontSize = "12px";
+  when.style.fontSize = COMMENT_FONT_SIZE_SM;
   when.textContent = new Date().toLocaleString();
 
   bodyHeader.appendChild(name);
@@ -498,7 +561,7 @@ function showThreadOverlayForPin(id: string) {
       pill.style.borderRadius = "16px";
       pill.style.background = "#ffffff";
       pill.style.color = "#111827";
-      pill.style.fontSize = "14px";
+      pill.style.fontSize = COMMENT_FONT_SIZE;
       pill.textContent = `${emo} ${count}`;
       pill.style.cursor = "pointer";
       pill.title = `Remove reaction ${emo}`;
@@ -517,6 +580,7 @@ function showThreadOverlayForPin(id: string) {
           w.__pushExcalidrawDevLog(`devHelpers: reaction removed pin=${id} emoji=${emo}`);
         } catch (e) {}
         renderReactions();
+        try { savePinsToStorage(); } catch (e) {}
         flashSaved();
       });
       reactionsWrap.appendChild(pill);
@@ -535,8 +599,9 @@ function showThreadOverlayForPin(id: string) {
     ta.value = p.text || "";
     ta.style.width = "100%";
     ta.style.minHeight = "64px";
-    ta.style.fontSize = "14px";
+    ta.style.fontSize = COMMENT_FONT_SIZE;
     ta.style.padding = "8px";
+    ta.style.fontFamily = COMMENT_FONT_FAMILY;
     commentText.replaceWith(ta);
 
     mainEditRow = document.createElement("div");
@@ -564,6 +629,7 @@ function showThreadOverlayForPin(id: string) {
       ta.replaceWith(commentText);
       mainEditRow?.remove();
       mainEditRow = null;
+      try { savePinsToStorage(); } catch (e) {}
     });
     cancelBtn.addEventListener("click", () => {
       ta.replaceWith(commentText);
@@ -632,6 +698,7 @@ function showThreadOverlayForPin(id: string) {
     picker.style.borderRadius = "8px";
     picker.style.zIndex = "10010";
     picker.style.minWidth = "240px";
+    picker.style.fontFamily = COMMENT_FONT_FAMILY;
     // search input
     const search = document.createElement("input");
     search.type = "search";
@@ -641,6 +708,7 @@ function showThreadOverlayForPin(id: string) {
     search.style.border = "1px solid #e6eefb";
     search.style.borderRadius = "8px";
     search.style.marginBottom = "8px";
+    search.style.fontFamily = COMMENT_FONT_FAMILY;
     picker.appendChild(search);
     // recent row
     const w = ensureWindow();
@@ -651,7 +719,7 @@ function showThreadOverlayForPin(id: string) {
     (w.__excalidrawRecentEmojis || []).forEach((re: string) => {
       const rb = document.createElement("button");
       rb.textContent = re;
-      rb.style.fontSize = "18px";
+      rb.style.fontSize = COMMENT_FONT_SIZE_LG;
       rb.style.width = "32px";
       rb.style.height = "32px";
       rb.style.border = "none";
@@ -664,6 +732,7 @@ function showThreadOverlayForPin(id: string) {
         renderReactions();
         picker.remove();
         currentPicker = null;
+        try { savePinsToStorage(); } catch (e) {}
       });
       recentRow.appendChild(rb);
     });
@@ -675,7 +744,7 @@ function showThreadOverlayForPin(id: string) {
     EMOJI_LIST.forEach((e) => {
       const b = document.createElement("button");
       b.textContent = e;
-      b.style.fontSize = "18px";
+      b.style.fontSize = COMMENT_FONT_SIZE_LG;
       b.style.width = "32px";
       b.style.height = "32px";
       b.style.border = "none";
@@ -691,6 +760,7 @@ function showThreadOverlayForPin(id: string) {
         renderReactions();
         picker.remove();
         currentPicker = null;
+        try { savePinsToStorage(); } catch (e) {}
       });
       grid.appendChild(b);
     });
@@ -720,8 +790,8 @@ function showThreadOverlayForPin(id: string) {
     row.style.alignItems = "flex-start";
 
     const av = document.createElement("div");
-    av.style.width = "28px";
-    av.style.height = "28px";
+    av.style.width = `${COMMENT_REPLY_AVATAR_SIZE}px`;
+    av.style.height = `${COMMENT_REPLY_AVATAR_SIZE}px`;
     av.style.borderRadius = "50%";
     av.style.background = "#e5e7eb";
     av.style.display = "flex";
@@ -729,7 +799,7 @@ function showThreadOverlayForPin(id: string) {
     av.style.justifyContent = "center";
     av.style.color = "#111827";
     av.style.fontWeight = "700";
-    av.style.fontSize = "12px";
+    av.style.fontSize = COMMENT_FONT_SIZE_SM;
     av.textContent = (r.author ?? "?").trim().charAt(0).toUpperCase();
 
     const cbody = document.createElement("div");
@@ -742,11 +812,11 @@ function showThreadOverlayForPin(id: string) {
 
     const cname = document.createElement("div");
     cname.style.fontWeight = "600";
-    cname.style.fontSize = "13px";
-    cname.textContent = r.author || "Anonymous";
+    cname.style.fontSize = COMMENT_FONT_SIZE_MD;
+    cname.textContent = r.author || "Anonymousaa";
 
     const cwhen = document.createElement("div");
-    cwhen.style.fontSize = "12px";
+    cwhen.style.fontSize = COMMENT_FONT_SIZE_SM;
     cwhen.style.color = "#6b7280";
     cwhen.textContent = new Date(r.time).toLocaleString();
 
@@ -759,13 +829,7 @@ function showThreadOverlayForPin(id: string) {
 
     // reply reaction button (small smiley)
     const rReactBtn = document.createElement("div");
-    rReactBtn.innerHTML = `
-      <svg viewBox="0 0 24 24" width="16" height="16" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-        <circle cx="12" cy="12" r="9" fill="#f3f4f6" />
-        <circle cx="8.2" cy="9.6" r="1" fill="#9ca3af" />
-        <circle cx="15.8" cy="9.6" r="1" fill="#9ca3af" />
-        <path d="M8.5 15c1.2 1 3 1 4.5 0" stroke="#6b7280" stroke-width="1.2" stroke-linecap="round" fill="none" />
-      </svg>`;
+    rReactBtn.innerHTML = SMILE_PLUS_SVG;
     rReactBtn.style.width = "28px";
     rReactBtn.style.height = "28px";
     rReactBtn.style.display = "flex";
@@ -807,7 +871,7 @@ function showThreadOverlayForPin(id: string) {
         pill.style.borderRadius = "16px";
         pill.style.background = "#ffffff";
         pill.style.color = "#111827";
-        pill.style.fontSize = "14px";
+        pill.style.fontSize = COMMENT_FONT_SIZE;
         pill.textContent = `${emo} ${count}`;
           pill.style.cursor = "pointer";
           pill.title = `Remove reaction ${emo}`;
@@ -829,6 +893,7 @@ function showThreadOverlayForPin(id: string) {
             }
             try { const w = ensureWindow(); w.__pushExcalidrawDevLog(`devHelpers: reply reaction removed pin=${id} reply=${r.id} emoji=${emo}`); } catch(e){}
             renderReplyReactions();
+            try { savePinsToStorage(); } catch (e) {}
             flashSaved();
           });
           replyReactionsWrap.appendChild(pill);
@@ -866,6 +931,7 @@ function showThreadOverlayForPin(id: string) {
       picker.style.borderRadius = "8px";
       picker.style.zIndex = "10010";
       picker.style.minWidth = "200px";
+        picker.style.fontFamily = COMMENT_FONT_FAMILY;
       // search + recent
       const search = document.createElement("input");
       search.type = "search";
@@ -875,6 +941,7 @@ function showThreadOverlayForPin(id: string) {
       search.style.border = "1px solid #e6eefb";
       search.style.borderRadius = "8px";
       search.style.marginBottom = "8px";
+      search.style.fontFamily = COMMENT_FONT_FAMILY;
       picker.appendChild(search);
       const w = ensureWindow();
       const recentRow = document.createElement("div");
@@ -884,7 +951,7 @@ function showThreadOverlayForPin(id: string) {
       (w.__excalidrawRecentEmojis || []).forEach((re: string) => {
         const rb = document.createElement("button");
         rb.textContent = re;
-        rb.style.fontSize = "18px";
+        rb.style.fontSize = COMMENT_FONT_SIZE_LG;
         rb.style.width = "32px";
         rb.style.height = "32px";
         rb.style.border = "none";
@@ -896,6 +963,7 @@ function showThreadOverlayForPin(id: string) {
           renderReplyReactions();
           picker.remove();
           replyPicker = null;
+          try { savePinsToStorage(); } catch (e) {}
         });
         recentRow.appendChild(rb);
       });
@@ -907,7 +975,7 @@ function showThreadOverlayForPin(id: string) {
       EMOJI_LIST.forEach((e) => {
         const b = document.createElement("button");
         b.textContent = e;
-        b.style.fontSize = "18px";
+        b.style.fontSize = COMMENT_FONT_SIZE_LG;
         b.style.width = "32px";
         b.style.height = "32px";
         b.style.border = "none";
@@ -921,6 +989,7 @@ function showThreadOverlayForPin(id: string) {
           renderReplyReactions();
           picker.remove();
           replyPicker = null;
+          try { savePinsToStorage(); } catch (e) {}
         });
         grid.appendChild(b);
       });
@@ -943,7 +1012,7 @@ function showThreadOverlayForPin(id: string) {
       ta.value = r.text || "";
       ta.style.width = "100%";
       ta.style.minHeight = "56px";
-      ta.style.fontSize = "14px";
+      ta.style.fontSize = COMMENT_FONT_SIZE;
       ta.style.padding = "8px";
       ctext.replaceWith(ta);
 
@@ -983,6 +1052,7 @@ function showThreadOverlayForPin(id: string) {
         if (p && p.replies) {
           const idx = p.replies.findIndex((rr) => rr.id === r.id);
           if (idx >= 0) p.replies[idx].text = r.text;
+          try { savePinsToStorage(); } catch (e) {}
         }
       });
 
@@ -996,6 +1066,7 @@ function showThreadOverlayForPin(id: string) {
         // remove from the in-memory replies and DOM
         if (p && p.replies) {
           p.replies = p.replies.filter((rr) => rr.id !== r.id);
+          try { savePinsToStorage(); } catch (e) {}
         }
         row.remove();
       });
@@ -1037,7 +1108,8 @@ function showThreadOverlayForPin(id: string) {
   replyInput.style.border = "1px solid rgba(0,0,0,0.06)";
   replyInput.style.borderRadius = "8px";
   replyInput.style.padding = "10px 12px";
-  replyInput.style.fontSize = "14px";
+  replyInput.style.fontSize = COMMENT_FONT_SIZE;
+  replyInput.style.fontFamily = COMMENT_FONT_FAMILY;
 
   const sendBtn = document.createElement("button");
   sendBtn.textContent = "➤";
@@ -1066,6 +1138,7 @@ function showThreadOverlayForPin(id: string) {
       renderReply(reply);
       replyInput.value = "";
       w.__pushExcalidrawDevLog(`devHelpers: reply added pin=${id} reply=${reply.id}`);
+      try { savePinsToStorage(); } catch (e) {}
       flashSaved();
     } catch (e) {
       // ignore
@@ -1157,7 +1230,7 @@ function onCreateCommentPin(ev: any) {
       // persist pin via the dev pins system so it follows viewport
       ensurePinsRendered();
       const id = detail.id ?? `devpin-${Date.now()}-${Math.floor(Math.random() * 10000)}`;
-      pins.set(id, { id, sceneX, sceneY, text, elementId, author, replies: [], reactions: {} });
+      pins.set(id, { id, sceneX, sceneY, text, elementId, author, replies: [], comments: [], reactions: {} });
       savePinsToStorage();
       renderAllPins(api);
     }
@@ -1172,6 +1245,15 @@ function onOpenCommentThread(ev: any) {
   const msg = `openCommentThread element=${elementId}`;
   console.log(msg, ev?.detail);
   w.__pushExcalidrawDevLog(msg);
+  // If the React-based comment overlay opened, close the dev overlay to avoid duplicates
+  try {
+    const isOpen = !!ev?.detail?.open;
+    // set a global flag so dev helpers know React overlay is active
+    (window as any).__excalidrawReactCommentThreadOpen = isOpen;
+    if (isOpen) removeThreadOverlay();
+  } catch (e) {
+    // ignore
+  }
 }
 
 export function initDevHelpers() {
@@ -1184,12 +1266,22 @@ export function initDevHelpers() {
     w.__excalidrawDevHelpersAttached = true;
     console.log("excalidraw: devHelpers attached");
     w.__pushExcalidrawDevLog("devHelpers attached");
+    // load persisted pins so they survive page reloads
+    try {
+      loadPinsFromStorage();
+    } catch (e) {
+      // ignore
+    }
     // try to bind to internal API if present to keep pins in sync with viewport
     try {
       // @ts-ignore
       const api = window.__excalidrawAPI;
       if (api) {
         bindApiScrollHandler(api);
+        // render any pins loaded from storage immediately
+        try {
+          renderAllPins(api);
+        } catch (e) {}
       } else {
         // poll until api is available
         const i = setInterval(() => {
@@ -1197,6 +1289,9 @@ export function initDevHelpers() {
           const a = window.__excalidrawAPI;
           if (a) {
             bindApiScrollHandler(a);
+            try {
+              renderAllPins(a);
+            } catch (e) {}
             clearInterval(i);
           }
         }, 500);

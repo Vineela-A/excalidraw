@@ -1,6 +1,7 @@
-import React, { useMemo, useState, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { EMOJI_LIST, SMILE_PLUS_SVG } from "../src/commentConstants";
+import { EMOJI_LIST, SMILE_PLUS_SVG, COMMENT_FONT_FAMILY, COMMENT_FONT_SIZE, COMMENT_FONT_SIZE_SM, COMMENT_FONT_SIZE_MD, COMMENT_FONT_SIZE_LG, COMMENT_FONT_SIZE_XL, COMMENT_ACCENT_COLOR, COMMENT_AVATAR_SIZE, COMMENT_AVATAR_RADIUS, COMMENT_REPLY_AVATAR_SIZE, COMMENT_REPLY_AVATAR_RADIUS } from "../src/commentConstants";
+import bubbleBaseStyle, { bubblePopoverStyle } from "../src/commentBubble";
 import { useExcalidrawElements, useExcalidrawAppState, useApp } from "./App";
 import { sceneCoordsToViewportCoords } from "@excalidraw/common";
 import { getElementAbsoluteCoords } from "@excalidraw/element";
@@ -21,23 +22,22 @@ const CommentPinsOverlay: React.FC = () => {
   const elements = useExcalidrawElements();
   const appState = useExcalidrawAppState();
 
-  const elementsMap = useMemo(() => new Map(elements.map((e) => [e.id, e])), [elements]);
+  const elementsMap = new Map(elements.map((e) => [e.id, e]));
 
   // collect all pins from elements; support backward-compatible `pin` and new `commentPins[]`
-  const pins = useMemo(() => {
-    return elements.flatMap((el) => {
-      const cd = (el.customData as any) || {};
-      const arr = Array.isArray(cd.commentPins) ? cd.commentPins : cd.pin ? [cd.pin] : [];
-      return arr.map((pin: any) => ({ el, pin }));
-    });
-  }, [elements]);
+  const pins = elements.flatMap((el) => {
+    const cd = (el.customData as any) || {};
+    const arr = Array.isArray(cd.commentPins) ? cd.commentPins : cd.pin ? [cd.pin] : [];
+    return arr.map((pin: any) => ({ el, pin }));
+  });
   const [openThreadFor, setOpenThreadFor] = useState<string | null>(null);
 
-  const ThreadPopover: React.FC<{ el: NonDeletedExcalidrawElement; pin: any }> = ({ el, pin }) => {
+  const ThreadPopover: React.FC<{ el: NonDeletedExcalidrawElement; pin: any; onDelete?: () => void }> = ({ el, pin, onDelete }) => {
     const app = useApp();
     const [replyValue, setReplyValue] = useState<string>("");
     const [emojiPickerFor, setEmojiPickerFor] = useState<number | null>(null);
     const btnRefs = useRef<Record<number, HTMLButtonElement | null>>({});
+    const [menuOpen, setMenuOpen] = useState(false);
 
     const handleSubmit = (e?: React.FormEvent) => {
       e?.preventDefault();
@@ -105,26 +105,125 @@ const CommentPinsOverlay: React.FC = () => {
     const comments = (latestPin && latestPin.comments) || [];
 
     return (
-      <div style={{ width: 380, maxWidth: "calc(100vw - 24px)" }}>
+      <div style={{ ...bubbleBaseStyle, width: 380, maxWidth: "calc(100vw - 24px)" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
           <div />
-          <div style={{ fontSize: 20, lineHeight: 1, cursor: "pointer", color: "#6b7280" }}>⋯</div>
+          <div style={{ position: "relative" }}>
+            <div
+              role="button"
+              onClick={() => setMenuOpen((s) => !s)}
+              style={{ fontSize: COMMENT_FONT_SIZE_XL, lineHeight: 1, cursor: "pointer", color: "#6b7280", padding: 6, borderRadius: 6 }}
+            >
+              ⋯
+            </div>
+              {menuOpen && (
+              <div
+                style={{
+                  position: "absolute",
+                  right: 0,
+                  top: 28,
+                  zIndex: 10010,
+                  minWidth: 120,
+                  ...(bubbleBaseStyle as any),
+                  borderRadius: 8,
+                  boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
+                  padding: 6,
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                      try {
+                        const elementsMap = app.scene.getElementsMapIncludingDeleted();
+                        const target = elementsMap.get(el.id);
+                        if (!target) return;
+                        const existing = (target.customData as any) || {};
+                        const hadCommentPins = Array.isArray(existing.commentPins);
+                        const pinsArr = hadCommentPins ? existing.commentPins.slice() : existing.pin ? [existing.pin] : [];
+
+                        // Filter pins by id OR by scene coords (fallback) OR by simple text/author match
+                        const nextPins = pinsArr.filter((p: any) => {
+                          try {
+                            if (!p) return true;
+                            if (p.id && pin && pin.id && p.id === pin.id) return false;
+                            if (typeof p.sceneX === "number" && typeof p.sceneY === "number" && typeof pin.sceneX === "number" && typeof pin.sceneY === "number") {
+                              if (Math.abs(p.sceneX - pin.sceneX) < 1 && Math.abs(p.sceneY - pin.sceneY) < 1) return false;
+                            }
+                            if (p.text && pin.text && p.text === pin.text) return false;
+                            if (p.author && pin.author && p.author === pin.author) return false;
+                          } catch (e) {
+                            // ignore and keep pin
+                          }
+                          return true;
+                        });
+
+                        const next = { ...existing } as any;
+                        if (nextPins.length > 0) {
+                          next.commentPins = nextPins;
+                          next.commentPin = true;
+                        } else {
+                          // clear both modern and legacy storage on element to be safe
+                          delete next.commentPins;
+                          delete next.pin;
+                          next.commentPin = false;
+                        }
+
+                        app.scene.mutateElement(target, { customData: next });
+
+                        // also remove any dev helper persisted pin for this element/pin id or by coords
+                        try {
+                          const raw = window.localStorage.getItem("__excalidraw_dev_pins_v1");
+                          if (raw) {
+                            const arr = JSON.parse(raw) as any[];
+                            const filtered = arr.filter((pp) => {
+                              if (!pp) return true;
+                              if (pp.id && pin && pin.id && pp.id === pin.id) return false;
+                              if (pp.elementId && el.id && pp.elementId === el.id) {
+                                if (typeof pp.sceneX === "number" && typeof pp.sceneY === "number" && typeof pin.sceneX === "number" && typeof pin.sceneY === "number") {
+                                  if (Math.abs(pp.sceneX - pin.sceneX) < 1 && Math.abs(pp.sceneY - pin.sceneY) < 1) return false;
+                                }
+                                // also remove entries that point to this element regardless
+                                return false;
+                              }
+                              return true;
+                            });
+                            if (filtered.length !== arr.length) {
+                              window.localStorage.setItem("__excalidraw_dev_pins_v1", JSON.stringify(filtered));
+                            }
+                          }
+                        } catch (e) {
+                          // ignore
+                        }
+                      } catch (e) {
+                        // ignore
+                      }
+                    setMenuOpen(false);
+                    onDelete?.();
+                  }}
+                  style={{ display: "block", width: "100%", padding: "10px 12px", textAlign: "left", border: "none", background: "transparent", cursor: "pointer", color: "#dc2626" }}
+                >
+                  Delete
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <div style={{ maxHeight: 300, overflow: "auto", marginBottom: 8, paddingRight: 8 }}>
           {comments.length ? (
             comments.map((c: any, idx: number) => (
               <div key={c.id || idx} style={{ display: "flex", gap: 12, marginBottom: 12, alignItems: "flex-start" }}>
-                <div style={{ width: 36, height: 36, borderRadius: 18, background: "#1FA9B6", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "white", fontSize: 14, flex: "0 0 auto" }}>
-                  {(c.user || c.author || "U").charAt(0).toUpperCase()}</div>
+                <div style={{ width: COMMENT_AVATAR_SIZE, height: COMMENT_AVATAR_SIZE, borderRadius: COMMENT_AVATAR_RADIUS, background: COMMENT_ACCENT_COLOR, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "white", fontSize: COMMENT_FONT_SIZE, flex: "0 0 auto" }}>
+                  {(c.user || c.author || "UV").charAt(0).toUpperCase()}</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }}>
                     <div style={{ minWidth: 0 }}>
                       <div style={{ fontWeight: 700 }}>{c.author || c.user || "Anonymous User"}</div>
-                      <div style={{ marginTop: 6, fontSize: 13, color: "#111" }}>{c.text}</div>
+                      <div style={{ marginTop: 6, fontSize: COMMENT_FONT_SIZE_MD, color: "#111" }}>{c.text}</div>
                     </div>
                     <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ fontSize: 12, color: "#6b7280" }}>{new Date(c.time || Date.now()).toLocaleString()}</div>
+                        <div style={{ fontSize: COMMENT_FONT_SIZE_SM, color: "#6b7280" }}>{new Date(c.time || Date.now()).toLocaleString()}</div>
                         <div style={{ position: "relative" }}>
                           <button
                             ref={(el) => { btnRefs.current[idx] = el; }}
@@ -146,7 +245,7 @@ const CommentPinsOverlay: React.FC = () => {
                             <span style={{ display: "inline-block", lineHeight: 0 }} dangerouslySetInnerHTML={{ __html: SMILE_PLUS_SVG }} />
                           </button>
                           {c.reactions && Object.values(c.reactions).reduce((s: number, v: any) => s + (typeof v === "number" ? v : 0), 0) > 0 && (
-                            <div style={{ color: "#374151", fontSize: 13, position: "absolute", right: -8, top: 6 }}>{Object.values(c.reactions).reduce((s: number, v: any) => s + (typeof v === "number" ? v : 0), 0)}</div>
+                            <div style={{ color: "#374151", fontSize: COMMENT_FONT_SIZE_MD, position: "absolute", right: -8, top: 6 }}>{Object.values(c.reactions).reduce((s: number, v: any) => s + (typeof v === "number" ? v : 0), 0)}</div>
                           )}
 
                           {/* emoji picker rendered into body via portal to avoid clipping */}
@@ -158,7 +257,7 @@ const CommentPinsOverlay: React.FC = () => {
               </div>
             ))
           ) : (
-            <div style={{ color: "#666", fontSize: 13 }}>No comments</div>
+            <div style={{ color: "#666", fontSize: COMMENT_FONT_SIZE_MD }}>No comments</div>
           )}
         </div>
         {emojiPickerFor !== null && btnRefs.current[emojiPickerFor] && createPortal(
@@ -182,13 +281,12 @@ const CommentPinsOverlay: React.FC = () => {
                     top: `${top}px`,
                     width: pickerWidth,
                     maxHeight: 220,
-                    background: "#fff",
-                    border: "1px solid rgba(0,0,0,0.08)",
-                    borderRadius: 10,
-                    boxShadow: "0 8px 30px rgba(16,24,40,0.12)",
-                    padding: 8,
                     overflow: "auto",
                     zIndex: 10010,
+                    ...(bubblePopoverStyle(pickerWidth, undefined, undefined) as any),
+                    borderRadius: 10,
+                    padding: 8,
+                    boxShadow: "0 8px 30px rgba(16,24,40,0.12)",
                   }}
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -201,7 +299,7 @@ const CommentPinsOverlay: React.FC = () => {
                           toggleReaction(emojiPickerFor!, emoji);
                           setEmojiPickerFor(null);
                         }}
-                        style={{ width: 28, height: 28, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", fontSize: 18 }}
+                        style={{ width: 28, height: 28, borderRadius: 6, border: "none", background: "transparent", cursor: "pointer", fontSize: COMMENT_FONT_SIZE_LG }}
                       >
                         {emoji}
                       </button>
@@ -220,7 +318,7 @@ const CommentPinsOverlay: React.FC = () => {
             value={replyValue}
             onChange={(e) => setReplyValue(e.target.value)}
             placeholder="Leave a reply. Use @ to mention."
-            style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1px solid #E5E7EB", background: "#fff" }}
+            style={{ flex: 1, padding: "12px 14px", borderRadius: 10, border: "1px solid #E5E7EB", background: "#fff", fontFamily: COMMENT_FONT_FAMILY, fontSize: COMMENT_FONT_SIZE_MD }}
           />
           <button
             type="submit"
@@ -235,7 +333,7 @@ const CommentPinsOverlay: React.FC = () => {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              fontSize: 18,
+              fontSize: COMMENT_FONT_SIZE_LG,
             }}
           >
             ➤
@@ -299,14 +397,15 @@ const CommentPinsOverlay: React.FC = () => {
               title="Open comment thread"
               onClick={() => {
                 // toggle local thread popover for this specific pin
-                setOpenThreadFor((s) => (s === key ? null : key));
+                const willOpen = openThreadFor !== key;
+                setOpenThreadFor(willOpen ? key : null);
                 const ev = new CustomEvent("excalidraw:openCommentThread", {
-                  detail: { elementId: el.id, pinId: pin.id },
+                  detail: { elementId: el.id, pinId: pin.id, open: willOpen },
                 });
                 window.dispatchEvent(ev);
               }}
             >
-              <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#1FA9B6", display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: 12 }}>
+              <div style={{ width: COMMENT_REPLY_AVATAR_SIZE, height: COMMENT_REPLY_AVATAR_SIZE, borderRadius: COMMENT_REPLY_AVATAR_RADIUS, background: COMMENT_ACCENT_COLOR, display: "flex", alignItems: "center", justifyContent: "center", color: "#fff", fontWeight: 700, fontSize: COMMENT_FONT_SIZE_SM }}>
                 {((comments && comments[0] && comments[0].user) || (pin && pin.author) || "U").toString().charAt(0).toUpperCase()}
               </div>
             </div>
@@ -323,43 +422,13 @@ const CommentPinsOverlay: React.FC = () => {
                         position: "absolute",
                         left: leftPos,
                         top: `-50%`,
-                        width: popoverWidth,
-                        minWidth: 260,
-                        maxWidth: 420,
-                        background: "white",
-                        border: "1px solid rgba(0,0,0,0.08)",
-                        borderRadius: 12,
-                        padding: 12,
-                        boxShadow: "0 12px 40px rgba(16,24,40,0.12)",
-                        pointerEvents: "auto",
-                        zIndex: 10001,
                         transformOrigin: placeRight ? "left center" : "right center",
+                        zIndex: 10001,
+                        ...(bubblePopoverStyle(popoverWidth, 260, "420px") as any),
                       }}
                       onClick={(e) => e.stopPropagation()}
-                    >
-                      {/* tail shadow */}
-                      {placeRight ? (
-                        <div style={{ position: "absolute", left: -11, top: "50%", transform: "translateY(-50%)", width: 0, height: 0, borderTop: "10px solid transparent", borderBottom: "10px solid transparent", borderRight: "11px solid rgba(0,0,0,0.08)", zIndex: 10000 }} />
-                      ) : (
-                        <div style={{ position: "absolute", right: -11, top: "50%", transform: "translateY(-50%)", width: 0, height: 0, borderTop: "10px solid transparent", borderBottom: "10px solid transparent", borderLeft: "11px solid rgba(0,0,0,0.08)", zIndex: 10000 }} />
-                      )}
-                      {/* tail (white) */}
-                      {placeRight ? (
-                        <div style={{ position: "absolute", left: -10, top: "50%", transform: "translateY(-50%)", width: 0, height: 0, borderTop: "9px solid transparent", borderBottom: "9px solid transparent", borderRight: "10px solid #fff", zIndex: 10001 }} />
-                      ) : (
-                        <div style={{ position: "absolute", right: -10, top: "50%", transform: "translateY(-50%)", width: 0, height: 0, borderTop: "9px solid transparent", borderBottom: "9px solid transparent", borderLeft: "10px solid #fff", zIndex: 10001 }} />
-                      )}
-
-                      <div style={{ marginBottom: 8 }}>
-                        {firstComment ? (
-                          <div style={{ color: "#111", fontSize: 13 }}>{firstComment}</div>
-                        ) : (
-                          <div style={{ color: "#666", fontSize: 13 }}>No comments</div>
-                        )}
-                      </div>
-                      <div>
-                        <ThreadPopover el={el} pin={pin} />
-                      </div>
+                    > 
+                        <ThreadPopover el={el} pin={pin} onDelete={() => setOpenThreadFor(null)} />
                     </div>
                   );
                 })()}

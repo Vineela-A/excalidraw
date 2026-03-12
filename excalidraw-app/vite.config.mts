@@ -13,6 +13,18 @@ export default defineConfig(({ mode }) => {
   const envVars = loadEnv(mode, `../`);
   // https://vitejs.dev/config/
   return {
+    // Avoid optimizing or processing prebuilt dist bundles in the workspace
+    // (these are large and cause Babel/Vite to deoptimize or emit warnings).
+    // Excluding the dist files forces Vite to use local source files and
+    // prevents requests for outdated optimized deps (504 Outdated Optimize Dep).
+    optimizeDeps: {
+      exclude: [
+        // exclude any prebuilt excalidraw dist bundles
+        "packages/excalidraw/dist/dev/index.js",
+        "../packages/excalidraw/dist/dev/index.js",
+        "./packages/excalidraw/dist/dev/index.js",
+      ],
+    },
     server: {
       port: Number(envVars.VITE_APP_PORT || 3000),
       // open the browser

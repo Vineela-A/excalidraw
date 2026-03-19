@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { EMOJI_LIST, SMILE_PLUS_SVG, COMMENT_FONT_FAMILY, COMMENT_FONT_SIZE, COMMENT_FONT_SIZE_SM, COMMENT_FONT_SIZE_MD, COMMENT_FONT_SIZE_LG, COMMENT_FONT_SIZE_XL, COMMENT_ACCENT_COLOR, COMMENT_AVATAR_SIZE, COMMENT_AVATAR_RADIUS, COMMENT_REPLY_AVATAR_SIZE, COMMENT_REPLY_AVATAR_RADIUS } from "../src/commentConstants";
 import bubbleBaseStyle, { bubblePopoverStyle } from "../src/commentBubble";
@@ -21,6 +21,7 @@ const PinSize = 28;
 const CommentPinsOverlay: React.FC = () => {
   const elements = useExcalidrawElements();
   const appState = useExcalidrawAppState();
+  const app = useApp();
 
   const elementsMap = new Map(elements.map((e) => [e.id, e]));
 
@@ -31,6 +32,44 @@ const CommentPinsOverlay: React.FC = () => {
     return arr.map((pin: any) => ({ el, pin }));
   });
   const [openThreadFor, setOpenThreadFor] = useState<string | null>(null);
+
+  // Listen for devHelpers deletion events so React overlay stays in sync
+  React.useEffect(() => {
+    const onDevDelete = (ev: any) => {
+      try {
+        const { id: delId, elementId, sceneX, sceneY } = ev?.detail || {};
+        if (!elementId && (typeof sceneX !== "number" || typeof sceneY !== "number")) return;
+        try {
+          const elementsMap = app.scene.getElementsMapIncludingDeleted();
+          const target = elementsMap.get(elementId);
+          if (!target) return;
+          const existing = (target.customData as any) || {};
+          const hadCommentPins = Array.isArray(existing.commentPins);
+          const pinsArr = hadCommentPins ? existing.commentPins.slice() : existing.pin ? [existing.pin] : [];
+          const nextPins = pinsArr.filter((p: any) => {
+            if (!p) return true;
+            if (delId && p.id && p.id === delId) return false;
+            if (typeof p.sceneX === "number" && typeof p.sceneY === "number" && typeof sceneX === "number" && typeof sceneY === "number") {
+              if (Math.abs(p.sceneX - sceneX) < 1 && Math.abs(p.sceneY - sceneY) < 1) return false;
+            }
+            return true;
+          });
+          const next = { ...existing } as any;
+          if (nextPins.length > 0) {
+            next.commentPins = nextPins;
+            next.commentPin = true;
+          } else {
+            delete next.commentPins;
+            delete next.pin;
+            next.commentPin = false;
+          }
+          app.scene.mutateElement(target, { customData: next });
+        } catch (e) {}
+      } catch (e) {}
+    };
+    window.addEventListener("excalidraw:devDeleteCommentPin", onDevDelete as any);
+    return () => window.removeEventListener("excalidraw:devDeleteCommentPin", onDevDelete as any);
+  }, [app]);
 
   const ThreadPopover: React.FC<{ el: NonDeletedExcalidrawElement; pin: any; onDelete?: () => void }> = ({ el, pin, onDelete }) => {
     const app = useApp();

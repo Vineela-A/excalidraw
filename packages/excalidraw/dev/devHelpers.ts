@@ -450,6 +450,12 @@ function showThreadOverlayForPin(id: string) {
         pinNodes.delete(id);
         // persist
         try { savePinsToStorage(); } catch (e) {}
+          // notify React overlay (if present) so it can clean element.customData too
+          try {
+            const p = pins.get(id);
+            const ev = new CustomEvent("excalidraw:devDeleteCommentPin", { detail: { id, elementId: p?.elementId, sceneX: p?.sceneX, sceneY: p?.sceneY } });
+            window.dispatchEvent(ev);
+          } catch (e) {}
         // try to re-render pins using internal API if available
         try {
           // @ts-ignore
@@ -1066,6 +1072,10 @@ function showThreadOverlayForPin(id: string) {
         // remove from the in-memory replies and DOM
         if (p && p.replies) {
           p.replies = p.replies.filter((rr) => rr.id !== r.id);
+          // Also mirror into `comments` if present so both shapes remain in sync
+          if (Array.isArray(p.comments)) {
+            p.comments = p.comments.filter((rr) => rr.id !== r.id);
+          }
           try { savePinsToStorage(); } catch (e) {}
         }
         row.remove();

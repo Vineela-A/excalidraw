@@ -62,6 +62,17 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     aiEnabled,
     showDeprecatedFonts,
     renderScrollbars,
+    // ── comment / reaction props ──────────────────────────────────────
+    commentPins,
+    reactions,
+    currentUser,
+    onCommentCreate,
+    onCommentDelete,
+    onCommentReply,
+    onCommentReplyDelete,
+    onReactionToggle,
+    onCommentReaction,
+    onCommentEdit,
   } = props;
 
   const canvasActions = props.UIOptions?.canvasActions;
@@ -155,6 +166,16 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           aiEnabled={aiEnabled !== false}
           showDeprecatedFonts={showDeprecatedFonts}
           renderScrollbars={renderScrollbars}
+          commentPins={commentPins}
+          reactions={reactions}
+          currentUser={currentUser}
+          onCommentCreate={onCommentCreate}
+          onCommentDelete={onCommentDelete}
+          onCommentReply={onCommentReply}
+          onCommentReplyDelete={onCommentReplyDelete}
+          onReactionToggle={onReactionToggle}
+          onCommentReaction={onCommentReaction}
+          onCommentEdit={onCommentEdit}
         >
           {children}
         </App>

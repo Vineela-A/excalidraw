@@ -548,6 +548,39 @@ export type OnUserFollowedPayload = {
   action: "FOLLOW" | "UNFOLLOW";
 };
 
+// ─── Comment Pins & Reactions ─────────────────────────────────────────────────
+
+export type CommentAuthor = {
+  id: string;
+  name: string;
+  /** CSS color string used for the avatar background */
+  avatarColor?: string;
+};
+
+export type CommentReply = {
+  id: string;
+  text: string;
+  author: CommentAuthor;
+  time: number;
+  /** emoji → aggregate count */
+  reactions?: Record<string, number>;
+};
+
+export type CommentPin = {
+  id: string;
+  elementId: string;
+  sceneX: number;
+  sceneY: number;
+  comments: CommentReply[];
+};
+
+export type ElementReaction = {
+  elementId: string;
+  emoji: string;
+  count: number;
+  userIds: string[];
+};
+
 export interface ExcalidrawProps {
   onChange?: (
     elements: readonly OrderedExcalidrawElement[],
@@ -643,6 +676,40 @@ export interface ExcalidrawProps {
   aiEnabled?: boolean;
   showDeprecatedFonts?: boolean;
   renderScrollbars?: boolean;
+  // ─── Comment Pins ───────────────────────────────────────────────────────────
+  commentPins?: CommentPin[];
+  onCommentCreate?: (pin: {
+    elementId: string;
+    sceneX: number;
+    sceneY: number;
+    text: string;
+    author: CommentAuthor;
+  }) => void;
+  onCommentDelete?: (pinId: string) => void;
+  /** Delete a single reply (not the whole thread). */
+  onCommentReplyDelete?: (replyId: string) => void;
+  onCommentReply?: (
+    pinId: string,
+    text: string,
+    author: CommentAuthor,
+  ) => void;
+  // ─── Reactions ──────────────────────────────────────────────────────────────
+  reactions?: ElementReaction[];
+  onReactionToggle?: (
+    elementId: string,
+    emoji: string,
+    userId: string,
+  ) => void;
+  /** Toggle an emoji reaction on a specific comment (patch doc.reactions). */
+  onCommentReaction?: (
+    commentId: string,
+    emoji: string,
+    userId: string,
+  ) => void;
+  /** Edit the text body of an existing comment or reply. */
+  onCommentEdit?: (commentId: string, text: string) => void;
+  /** Current user info used for authoring comments/reactions */
+  currentUser?: CommentAuthor;
 }
 
 export type SceneData = {

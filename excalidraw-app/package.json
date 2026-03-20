@@ -27,6 +27,8 @@
   },
   "dependencies": {
     "@excalidraw/random-username": "1.0.0",
+    "rxdb": "16.21.1",
+    "rxjs": "7.8.2",
     "@sentry/browser": "9.0.1",
     "callsites": "4.2.0",
     "firebase": "11.3.1",

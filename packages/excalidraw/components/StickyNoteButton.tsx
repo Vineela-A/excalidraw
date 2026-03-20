@@ -1,60 +1,28 @@
-import React from "react";
+import React, { useState } from "react";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
-import { newElement } from "@excalidraw/element";
-import {
-  DEFAULT_ELEMENT_PROPS,
-  COLOR_STICKYNOTE_YELLOW,
-  getLineHeight,
-  DEFAULT_FONT_FAMILY,
-} from "@excalidraw/common";
+import { newStickynoteElement } from "@excalidraw/element";
+import { COLOR_STICKYNOTE_YELLOW } from "@excalidraw/common";
+
+// Miro-style sticky note colors
+const STICKY_COLORS = [
+  { label: "Yellow", value: COLOR_STICKYNOTE_YELLOW },
+  { label: "Pink",   value: "#ffd6e7" },
+  { label: "Blue",   value: "#cce5ff" },
+  { label: "Green",  value: "#d4edda" },
+  { label: "Lavender", value: "#e2d9f3" },
+];
 
 type Props = {
   api: ExcalidrawImperativeAPI | null;
 };
 
-// Helper to create a sticky as a rectangle + text grouped together.
-const createStickyPair = (
-  x: number,
-  y: number,
-  width = 200,
-  height = 150,
-  text = "",
-) => {
-  const rect = {
-    ...newElement({ type: "rectangle", x, y, width, height } as any),
-    backgroundColor: COLOR_STICKYNOTE_YELLOW,
-    strokeColor: DEFAULT_ELEMENT_PROPS.strokeColor,
-    strokeWidth: 1,
-    roundness: 8,
-  } as any;
-
-  const fontSize = 16;
-  const lineHeight = getLineHeight(DEFAULT_FONT_FAMILY as any);
-
-  const txt = {
-    ...newElement({ type: "text", x: x + 12, y: y + 12, width: width - 24, height: height - 24 } as any),
-    text,
-    fontSize,
-    textAlign: "left",
-    verticalAlign: "top",
-    backgroundColor: "transparent",
-    originalText: text,
-    autoResize: false,
-    lineHeight,
-  } as any;
-
-  // groupIds are used to group elements; create a shared group id
-  const groupId = `sticky-${Date.now()}-${Math.random().toString(36).slice(2,8)}`;
-  rect.groupIds = [groupId];
-  txt.groupIds = [groupId];
-
-  return { rect, txt };
-};
-
 const StickyNoteButton: React.FC<Props> = ({ api }) => {
-  const handleAdd = () => {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const addSticky = (color: string) => {
     if (!api) return;
-    // compute a center position in scene coordinates using current app state
+    setPickerOpen(false);
+
     const appState = api.getAppState?.();
     const width = 200;
     const height = 150;
@@ -68,20 +36,82 @@ const StickyNoteButton: React.FC<Props> = ({ api }) => {
       const viewH = window.innerHeight || 600;
       const scrollX = (appState as any).scrollX || 0;
       const scrollY = (appState as any).scrollY || 0;
-      x = scrollX + (viewW / zoom) / 2 - width / 2;
-      y = scrollY + (viewH / zoom) / 2 - height / 2;
+      x = scrollX + viewW / zoom / 2 - width / 2;
+      y = scrollY + viewH / zoom / 2 - height / 2;
     }
 
-    const { rect, txt } = createStickyPair(x, y, width, height);
+    const sticky = newStickynoteElement({
+      text: "",
+      x,
+      y,
+      width,
+      height,
+      backgroundColor: color,
+    });
 
-    // append the new elements to the scene and select them as a group
-    api.updateScene({ elements: [...(api.getSceneElements?.() ?? []), rect, txt], appState: { selectedElementIds: { [rect.id]: true, [txt.id]: true } as any } } as any);
+    const existing = api.getSceneElements?.() ?? [];
+    api.updateScene({
+      elements: [...existing, sticky],
+      appState: { selectedElementIds: { [sticky.id]: true } as any },
+    } as any);
+
+    // Trigger text editing by dispatching a dblclick-like event on the element
+    // after a short delay so the scene has updated
+    setTimeout(() => {
+      const ev = new CustomEvent("excalidraw:editStickynote", {
+        detail: { id: sticky.id },
+      });
+      window.dispatchEvent(ev);
+    }, 50);
   };
 
   return (
-    <button type="button" onClick={handleAdd} className="excalidraw-add-sticky">
-      Add Sticky Note
-    </button>
+    <div style={{ position: "relative", display: "inline-block" }}>
+      <button
+        type="button"
+        className="excalidraw-add-sticky"
+        onClick={() => setPickerOpen((s) => !s)}
+        title="Add sticky note"
+      >
+        Add Sticky
+      </button>
+
+      {pickerOpen && (
+        <div
+          style={{
+            position: "absolute",
+            top: "110%",
+            left: 0,
+            background: "#fff",
+            border: "1px solid #E5E7EB",
+            borderRadius: 10,
+            boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
+            padding: 8,
+            display: "flex",
+            gap: 8,
+            zIndex: 10020,
+          }}
+        >
+          {STICKY_COLORS.map((c) => (
+            <button
+              key={c.value}
+              type="button"
+              title={c.label}
+              onClick={() => addSticky(c.value)}
+              style={{
+                width: 28,
+                height: 28,
+                borderRadius: 6,
+                background: c.value,
+                border: "2px solid rgba(0,0,0,0.12)",
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            />
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

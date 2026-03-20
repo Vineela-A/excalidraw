@@ -144,8 +144,12 @@ import "./index.scss";
 
 import { ExcalidrawPlusPromoBanner } from "./components/ExcalidrawPlusPromoBanner";
 import { AppSidebar } from "./components/AppSidebar";
+import { DbProvider, useDb } from "./db/index";
+import { useCommentPins } from "./db/useCommentPins";
+import { useReactions } from "./db/useReactions";
 
 import type { CollabAPI } from "./collab/Collab";
+import type { CommentAuthor } from "@excalidraw/excalidraw/types";
 
 polyfill();
 
@@ -390,6 +394,113 @@ const ExcalidrawWrapper = () => {
   }
 
   const debugCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // ─── RxDB: comments & reactions ───────────────────────────────────────────
+  // Derive a stable board ID from the URL hash (room key) or fall back to
+  // a fixed local identifier so data persists across page reloads.
+  const boardId = (() => {
+    const hash = window.location.hash.slice(1);
+    if (hash) return hash.split(",")[0] || "local";
+    return "local";
+  })();
+
+  const db = useDb();
+  const commentPins = useCommentPins(boardId);
+  const reactions = useReactions(boardId);
+
+  // Current user — in a real app wire this to your auth provider
+  const currentUser: CommentAuthor = {
+    id: importUsernameFromLocalStorage() || "local-user",
+    name: importUsernameFromLocalStorage() || "You",
+    avatarColor: "#1FA9B6",
+  };
+
+  const onCommentCreate: React.ComponentProps<typeof Excalidraw>["onCommentCreate"] = async ({
+    elementId, sceneX, sceneY, text, author,
+  }) => {
+    const doc: Record<string, unknown> = {
+      id: `p-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      boardId,
+      elementId,
+      sceneX,
+      sceneY,
+      text,
+      authorId: author.id,
+      authorName: author.name,
+      time: Date.now(),
+    };
+    if (author.avatarColor) doc.authorColor = author.avatarColor;
+    await db.comments.insert(doc as any);
+  };
+
+  const onCommentDelete: React.ComponentProps<typeof Excalidraw>["onCommentDelete"] = async (pinId) => {
+    // Two separate queries — Dexie doesn't support top-level $or
+    const [pin, replies] = await Promise.all([
+      db.comments.findOne(pinId).exec(),
+      db.comments.find({ selector: { parentId: pinId } }).exec(),
+    ]);
+    const toRemove = [...(pin ? [pin] : []), ...replies];
+    await Promise.all(toRemove.map((d) => d.remove()));
+  };
+
+  const onCommentReplyDelete: React.ComponentProps<typeof Excalidraw>["onCommentReplyDelete"] = async (replyId) => {
+    const doc = await db.comments.findOne(replyId).exec();
+    await doc?.remove();
+  };
+
+  const onCommentReply: React.ComponentProps<typeof Excalidraw>["onCommentReply"] = async (pinId, text, author) => {
+    const parent = await db.comments.findOne(pinId).exec();
+    const doc: Record<string, unknown> = {
+      id: `r-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      boardId,
+      elementId: parent?.elementId ?? "",
+      sceneX: parent?.sceneX ?? 0,
+      sceneY: parent?.sceneY ?? 0,
+      text,
+      authorId: author.id,
+      authorName: author.name,
+      time: Date.now(),
+      parentId: pinId,
+    };
+    if (author.avatarColor) doc.authorColor = author.avatarColor;
+    await db.comments.insert(doc as any);
+  };
+
+  const onReactionToggle: React.ComponentProps<typeof Excalidraw>["onReactionToggle"] = async (
+    elementId, emoji, userId,
+  ) => {
+    const reactionId = `${elementId}::${emoji}::${userId}`;
+    const existing = await db.reactions.findOne(reactionId).exec();
+    if (existing) {
+      await existing.remove();
+    } else {
+      await db.reactions.insert({ id: reactionId, boardId, elementId, emoji, userId });
+    }
+  };
+
+  const onCommentReaction: React.ComponentProps<typeof Excalidraw>["onCommentReaction"] = async (
+    commentId, emoji, userId,
+  ) => {
+    // Store comment-level reactions in the reactions collection using
+    // elementId = commentId.  This is identical to element reactions but keyed
+    // by comment ID, avoiding any AJV emoji-key validation issues on comment docs.
+    const reactionId = `${commentId}::${emoji}::${userId}`;
+    const existing = await db.reactions.findOne(reactionId).exec();
+    if (existing) {
+      await existing.remove();
+    } else {
+      await db.reactions.insert({ id: reactionId, boardId, elementId: commentId, emoji, userId });
+    }
+  };
+
+  const onCommentEdit: React.ComponentProps<typeof Excalidraw>["onCommentEdit"] = async (
+    commentId, text,
+  ) => {
+    const doc = await db.comments.findOne(commentId).exec();
+    if (!doc || !text.trim()) return;
+    await doc.incrementalPatch({ text: text.trim() });
+  };
+  // ──────────────────────────────────────────────────────────────────────────
 
   useEffect(() => {
     trackEvent("load", "frame", getFrame());
@@ -882,6 +993,16 @@ const ExcalidrawWrapper = () => {
         handleKeyboardGlobally={true}
         autoFocus={true}
         theme={editorTheme}
+        commentPins={commentPins}
+        reactions={reactions}
+        currentUser={currentUser}
+        onCommentCreate={onCommentCreate}
+        onCommentDelete={onCommentDelete}
+        onCommentReply={onCommentReply}
+        onReactionToggle={onReactionToggle}
+        onCommentReaction={onCommentReaction}
+        onCommentEdit={onCommentEdit}
+        onCommentReplyDelete={onCommentReplyDelete}
         renderTopRightUI={(isMobile) => {
           if (isMobile || !collabAPI || isCollabDisabled) {
             return null;
@@ -1206,7 +1327,9 @@ const ExcalidrawApp = () => {
   return (
     <TopErrorBoundary>
       <Provider store={appJotaiStore}>
-        <ExcalidrawWrapper />
+        <DbProvider>
+          <ExcalidrawWrapper />
+        </DbProvider>
       </Provider>
     </TopErrorBoundary>
   );

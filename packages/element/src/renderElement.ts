@@ -589,15 +589,12 @@ const drawElementOnCanvas = (
       break;
     }
     case "stickynote": {
-      // Render stickynote with subtle drop shadow and padded text
       const sticky = element as any;
       const corner = 0;
-      // shadow offset (x,y) and fill
       const shadowOffsetX = 4;
       const shadowOffsetY = 6;
       const shadowColor = "rgba(0,0,0,0.12)";
 
-      // Draw shadow as an offset rounded rect (separate from the main fill)
       context.save();
       context.globalAlpha = sticky.opacity / 100;
       context.fillStyle = shadowColor;
@@ -619,14 +616,11 @@ const drawElementOnCanvas = (
       context.fill();
       context.restore();
 
-      // Draw main sticky note
       context.save();
       context.fillStyle = sticky.backgroundColor;
       context.strokeStyle = sticky.strokeColor;
       context.globalAlpha = sticky.opacity / 100;
       context.lineJoin = "round";
-      // No visible stroke for stickynotes — keep the appearance as a plain
-      // sheet of paper so selection border sits flush with the fill.
       context.lineWidth = 0;
       context.beginPath();
       context.moveTo(0, corner);
@@ -641,9 +635,6 @@ const drawElementOnCanvas = (
       context.fill();
       context.restore();
 
-      // Draw inner inset lighter rectangle to simulate the pasted paper area
-      // INSET scales with element size so the visible note scales proportionally
-      // to the element. Clamp to a sensible min/max so it looks good on extremes.
       const rawInset = Math.min(element.width, element.height) * 0.08;
       const INSET = Math.max(8, Math.min(64, Math.round(rawInset)));
       const innerColor = lightenColor(sticky.backgroundColor, 0.06) || "#fffce0";
@@ -668,7 +659,6 @@ const drawElementOnCanvas = (
       context.fill();
       context.restore();
 
-      // Render stickynote text only if present
       if (sticky.text && sticky.text.trim() !== "") {
         const rtl = isRTL(sticky.text);
         const shouldTemporarilyAttach = rtl && !context.canvas.isConnected;
@@ -678,34 +668,20 @@ const drawElementOnCanvas = (
         context.canvas.setAttribute("dir", rtl ? "rtl" : "ltr");
         context.save();
 
-        // Calculate dynamic font size based on text length
-        const textLength = sticky.text.length;
-        // Scale font size inversely with text length
-        // Short text (< 30 chars): full size
-        // Medium text (30-100 chars): 90-100% size
-        // Long text (> 100 chars): scale down progressively
-        let dynamicFontSize = sticky.fontSize;
-        if (textLength > 30) {
-          const scaleFactor = Math.max(0.6, 30 / textLength);
-          dynamicFontSize = Math.round(sticky.fontSize * scaleFactor);
-        }
-
-        // Iteratively reduce font size until text fits within sticky note bounds
-        const PAD_X = 4;
-        const PAD_Y = 4;
+        const PAD_X = 8;
+        const PAD_Y = 8;
         const availableWidth = sticky.width - PAD_X * 2;
         const availableHeight = sticky.height - PAD_Y * 2;
 
-        let finalFontSize = dynamicFontSize;
+        let finalFontSize = sticky.fontSize;
         let fontString = getFontString({ fontSize: finalFontSize, fontFamily: sticky.fontFamily });
         let wrappedText = wrapText(sticky.text, fontString, availableWidth);
         let lines = wrappedText.split("\n");
         let lineHeightPx = getLineHeightInPx(finalFontSize, sticky.lineHeight);
         let totalHeight = lines.length * lineHeightPx;
 
-        // Reduce font size if text doesn't fit vertically
         while (totalHeight > availableHeight && finalFontSize > 10) {
-          finalFontSize = Math.max(10, finalFontSize - 2);
+          finalFontSize = Math.max(10, finalFontSize - 1);
           fontString = getFontString({ fontSize: finalFontSize, fontFamily: sticky.fontFamily });
           wrappedText = wrapText(sticky.text, fontString, availableWidth);
           lines = wrappedText.split("\n");
@@ -719,16 +695,13 @@ const drawElementOnCanvas = (
             ? applyDarkModeFilter(sticky.strokeColor)
             : sticky.strokeColor;
 
-        // padding inside the sticky note
-        // set all internal padding to 0 per user request
         const verticalOffset = getVerticalOffset(
           sticky.fontFamily,
           finalFontSize,
           lineHeightPx,
         );
 
-        // compute horizontal x coordinate based on alignment and padding
-        let xPos: number | "center" = PAD_X;
+        let xPos: number = PAD_X;
         if (sticky.textAlign === "center") {
           xPos = sticky.width / 2;
           context.textAlign = "center" as CanvasTextAlign;
@@ -736,51 +709,15 @@ const drawElementOnCanvas = (
           xPos = sticky.width - PAD_X;
           context.textAlign = "right" as CanvasTextAlign;
         } else {
-          xPos = PAD_X;
           context.textAlign = "left" as CanvasTextAlign;
         }
 
-        // starting y position: include top padding
         const startY = PAD_Y + verticalOffset;
 
         for (let index = 0; index < lines.length; index++) {
-          const line = lines[index];
-          const isLastLine = index === lines.length - 1;
-
-          // Justify all lines except the last one when possible
-          if (!isLastLine && line.includes(" ") && sticky.textAlign === "left") {
-              const words = line.split(/\s+/).filter(Boolean);
-              const gaps = words.length - 1;
-              if (gaps > 0) {
-                const wordWidths = words.map((w) => getLineWidth(w, fontString));
-                const totalWordWidths = wordWidths.reduce((a, b) => a + b, 0);
-                const spaceWidth = getLineWidth(" ", fontString);
-                const baseTotal = totalWordWidths + gaps * spaceWidth;
-                let extraPerGap = Math.max(0, (availableWidth - baseTotal) / gaps);
-
-                // Avoid absurdly large gaps — cap to a few times the normal space width
-                const MAX_EXTRA_MULTIPLIER = 3;
-                extraPerGap = Math.min(extraPerGap, spaceWidth * MAX_EXTRA_MULTIPLIER);
-
-                // Draw words individually, adding normal space width + distributed extra spacing
-                let cursorX = PAD_X;
-                const prevTextAlign = context.textAlign;
-                context.textAlign = "left" as CanvasTextAlign;
-                for (let w = 0; w < words.length; w++) {
-                  const word = words[w];
-                  const y = index * lineHeightPx + startY;
-                  context.fillText(word, cursorX, y);
-                  const wordWidth = wordWidths[w];
-                  cursorX += wordWidth + spaceWidth + extraPerGap;
-                }
-                context.textAlign = prevTextAlign;
-              } else {
-                context.fillText(line, xPos as number, index * lineHeightPx + startY);
-              }
-          } else {
-            context.fillText(line, xPos as number, index * lineHeightPx + startY);
-          }
+          context.fillText(lines[index], xPos, index * lineHeightPx + startY);
         }
+
         context.restore();
         if (shouldTemporarilyAttach) {
           context.canvas.remove();
@@ -1046,6 +983,7 @@ export const renderElement = (
 
   switch (element.type) {
     case "stickynote": {
+      const isEditingThisSticky = "editingTextElement" in appState && appState.editingTextElement?.id === element.id;
       if (renderConfig.isExporting) {
         const [x1, y1, x2, y2] = getElementAbsoluteCoords(element, elementsMap);
         const cx = (x1 + x2) / 2 + appState.scrollX;
@@ -1057,6 +995,23 @@ export const renderElement = (
         context.rotate(element.angle);
         context.translate(-shiftX, -shiftY);
         drawElementOnCanvas(element, rc, context, renderConfig);
+        context.restore();
+      } else if (isEditingThisSticky) {
+        const [x1, y1, x2, y2] = getElementAbsoluteCoords(element, elementsMap);
+        const cx = (x1 + x2) / 2 + appState.scrollX;
+        const cy = (y1 + y2) / 2 + appState.scrollY;
+        const shiftX = (x2 - x1) / 2 - (element.x - x1);
+        const shiftY = (y2 - y1) / 2 - (element.y - y1);
+        context.save();
+        context.translate(cx, cy);
+        context.rotate(element.angle);
+        context.translate(-shiftX, -shiftY);
+        drawElementOnCanvas(
+          { ...element, text: "" } as NonDeletedExcalidrawElement,
+          rc,
+          context,
+          renderConfig,
+        );
         context.restore();
       } else {
         const elementWithCanvas = generateElementWithCanvas(

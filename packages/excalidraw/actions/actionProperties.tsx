@@ -49,6 +49,7 @@ import {
   isLinearElement,
   isLineElement,
   isTextElement,
+  isStickynoteElement,
   isUsingAdaptiveRadius,
 } from "@excalidraw/element";
 
@@ -257,6 +258,11 @@ const changeFontSize = (
     elements,
     appState,
     (oldElement) => {
+      if (isStickynoteElement(oldElement)) {
+        const newFontSize = getNewFontSize(oldElement as unknown as ExcalidrawTextElement);
+        newFontSizes.add(newFontSize);
+        return newElementWith(oldElement, { fontSize: newFontSize } as any);
+      }
       if (isTextElement(oldElement)) {
         const newFontSize = getNewFontSize(oldElement);
         newFontSizes.add(newFontSize);
@@ -787,8 +793,8 @@ export const actionChangeFontSize = register<ExcalidrawTextElement["fontSize"]>(
                 elements,
                 app,
                 (element) => {
-                  if (isTextElement(element)) {
-                    return element.fontSize;
+                  if (isTextElement(element) || isStickynoteElement(element)) {
+                    return (element as any).fontSize;
                   }
                   const boundTextElement = getBoundTextElement(
                     element,
@@ -801,6 +807,7 @@ export const actionChangeFontSize = register<ExcalidrawTextElement["fontSize"]>(
                 },
                 (element) =>
                   isTextElement(element) ||
+                  isStickynoteElement(element) ||
                   getBoundTextElement(
                     element,
                     app.scene.getNonDeletedElementsMap(),
@@ -1003,10 +1010,17 @@ export const actionChangeFontFamily = register<{
           elements,
           appState,
           (oldElement) => {
+            if (isStickynoteElement(oldElement)) {
+              return newElementWith(oldElement, {
+                fontFamily: nextFontFamily,
+                lineHeight: getLineHeight(nextFontFamily!),
+              } as any);
+            }
+
             if (
               isTextElement(oldElement) &&
               (oldElement.fontFamily !== nextFontFamily ||
-                currentItemFontFamily) // force update on selection
+                currentItemFontFamily)
             ) {
               const newElement: ExcalidrawTextElement = newElementWith(
                 oldElement,
@@ -1022,7 +1036,6 @@ export const actionChangeFontFamily = register<{
               const container = app.scene.getContainerElement(oldElement);
 
               if (resetContainers && container && cachedContainer) {
-                // reset the container back to it's cached version
                 app.scene.mutateElement(container, { ...cachedContainer });
               }
 
@@ -1101,8 +1114,8 @@ export const actionChangeFontFamily = register<{
           elementsArray,
           app,
           (element) => {
-            if (isTextElement(element)) {
-              return element.fontFamily;
+            if (isTextElement(element) || isStickynoteElement(element)) {
+              return (element as any).fontFamily;
             }
             const boundTextElement = getBoundTextElement(element, elementsMap);
             if (boundTextElement) {
@@ -1112,6 +1125,7 @@ export const actionChangeFontFamily = register<{
           },
           (element) =>
             isTextElement(element) ||
+            isStickynoteElement(element) ||
             getBoundTextElement(element, elementsMap) !== null,
           (hasSelection) =>
             hasSelection

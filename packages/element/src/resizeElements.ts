@@ -750,168 +750,41 @@ export const resizeSingleElement = (
     );
   }
 
-  // support stickynote resizing: scale font size to fit when shrinking
   if (isStickynoteElement(latestElement) && isStickynoteElement(origElement)) {
     const element = latestElement as NonDeleted<
       import("./types").ExcalidrawStickynoteElement
     >;
     const orig = origElement as typeof element;
-    const elementsMap = scene.getNonDeletedElementsMap();
 
-    // vertical-only resize (n or s) — only when it's a pure vertical handle
-    if ((handleDirection.includes("n") || handleDirection.includes("s")) && handleDirection.length === 1) {
-      const metricsWidth = element.width * (nextHeight / element.height);
+    const absNextWidth  = Math.abs(nextWidth);
+    const absNextHeight = Math.abs(nextHeight);
 
-      const fontMetric = measureFontSizeFromWidth(
-        // cast to text-like for measurement
-        (element as unknown) as NonDeleted<import("./types").ExcalidrawTextElement>,
-        elementsMap,
-        metricsWidth,
-      );
-      if (fontMetric === null) {
-        return;
-      }
+    const widthRatio  = absNextWidth  / orig.width;
+    const heightRatio = absNextHeight / orig.height;
+    const fontRatio   = Math.min(widthRatio, heightRatio);
+    const nextFontSize = Math.max(MIN_FONT_SIZE, orig.fontSize * fontRatio);
 
-      const previousOrigin = pointFrom<GlobalPoint>(orig.x, orig.y);
+    const previousOrigin = pointFrom<GlobalPoint>(orig.x, orig.y);
+    const newOrigin = getResizedOrigin(
+      previousOrigin,
+      orig.width,
+      orig.height,
+      absNextWidth,
+      absNextHeight,
+      orig.angle,
+      handleDirection,
+      false,
+      shouldResizeFromCenter,
+    );
 
-      const newOrigin = getResizedOrigin(
-        previousOrigin,
-        orig.width,
-        orig.height,
-        metricsWidth,
-        nextHeight,
-        orig.angle,
-        handleDirection,
-        false,
-        shouldResizeFromCenter,
-      );
-
-      scene.mutateElement(element, {
-        fontSize: fontMetric.size,
-        width: Math.abs(metricsWidth),
-        height: Math.abs(nextHeight),
-        x: newOrigin.x,
-        y: newOrigin.y,
-      });
-      return;
-    }
-
-    // horizontal resize (e / w) — only when it's a pure horizontal handle
-    if ((handleDirection === "e" || handleDirection === "w") && handleDirection.length === 1) {
-      const minWidth = getMinTextElementWidth(
-        getFontString({
-          fontSize: element.fontSize,
-          fontFamily: element.fontFamily,
-        }),
-        element.lineHeight,
-      );
-
-      const newWidth = Math.max(minWidth, nextWidth);
-
-      // attempt to scale font to fit into new width
-      const fontMetric = measureFontSizeFromWidth(
-        (element as unknown) as NonDeleted<import("./types").ExcalidrawTextElement>,
-        elementsMap,
-        Math.abs(newWidth),
-      );
-      if (fontMetric === null) {
-        // fallback to wrapping behaviour if scaling below min font size
-        const text = wrapText(
-          element.text,
-          getFontString(element),
-          Math.abs(newWidth),
-        );
-        const metrics = measureText(text, getFontString(element), element.lineHeight);
-        const previousOrigin = pointFrom<GlobalPoint>(orig.x, orig.y);
-        const newOrigin = getResizedOrigin(
-          previousOrigin,
-          orig.width,
-          orig.height,
-          newWidth,
-          metrics.height,
-          orig.angle,
-          handleDirection,
-          false,
-          shouldResizeFromCenter,
-        );
-
-        scene.mutateElement(element, {
-          width: Math.abs(newWidth),
-          height: Math.abs(metrics.height),
-          x: newOrigin.x,
-          y: newOrigin.y,
-          text,
-        });
-        return;
-      }
-
-      // scaled font fits
-      const previousOrigin = pointFrom<GlobalPoint>(orig.x, orig.y);
-
-      const newOrigin = getResizedOrigin(
-        previousOrigin,
-        orig.width,
-        orig.height,
-        newWidth,
-        // keep original height for pure horizontal resize when scaling font
-        orig.height,
-        orig.angle,
-        handleDirection,
-        false,
-        shouldResizeFromCenter,
-      );
-
-      scene.mutateElement(element, {
-        fontSize: fontMetric.size,
-        width: Math.abs(newWidth),
-        height: Math.abs(orig.height),
-        x: newOrigin.x,
-        y: newOrigin.y,
-      });
-      return;
-    }
-
-    // corner resize (e.g. ne, nw, se, sw) — preserve aspect ratio and scale font
-    if (handleDirection.length === 2) {
-      const widthRatio = Math.abs(nextWidth) / element.width;
-      const heightRatio = Math.abs(nextHeight) / element.height;
-      const ratio = Math.max(widthRatio, heightRatio);
-
-      const metricsWidth = element.width * ratio;
-      const metricsHeight = element.height * ratio;
-
-      const fontMetric = measureFontSizeFromWidth(
-        (element as unknown) as NonDeleted<import("./types").ExcalidrawTextElement>,
-        elementsMap,
-        metricsWidth,
-      );
-      if (fontMetric === null) {
-        return;
-      }
-
-      const previousOrigin = pointFrom<GlobalPoint>(orig.x, orig.y);
-
-      const newOrigin = getResizedOrigin(
-        previousOrigin,
-        orig.width,
-        orig.height,
-        metricsWidth,
-        metricsHeight,
-        orig.angle,
-        handleDirection,
-        false,
-        shouldResizeFromCenter,
-      );
-
-      scene.mutateElement(element, {
-        fontSize: fontMetric.size,
-        width: Math.abs(metricsWidth),
-        height: Math.abs(metricsHeight),
-        x: newOrigin.x,
-        y: newOrigin.y,
-      });
-      return;
-    }
+    scene.mutateElement(element, {
+      fontSize: nextFontSize,
+      width:  absNextWidth,
+      height: absNextHeight,
+      x: newOrigin.x,
+      y: newOrigin.y,
+    });
+    return;
   }
 
   let boundTextFont: { fontSize?: number } = {};

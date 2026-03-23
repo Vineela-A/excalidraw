@@ -31,6 +31,7 @@ import {
   DEFAULT_MAX_IMAGE_WIDTH_OR_HEIGHT,
   DEFAULT_VERTICAL_ALIGN,
   COLOR_STICKYNOTE_YELLOW,
+  FONT_FAMILY,
   DRAGGING_THRESHOLD,
   ELEMENT_SHIFT_TRANSLATE_AMOUNT,
   ELEMENT_TRANSLATE_AMOUNT,
@@ -420,6 +421,8 @@ import { LaserTrails } from "../laser-trails";
 import { withBatchedUpdates, withBatchedUpdatesThrottled } from "../reactUtils";
 import { textWysiwyg } from "../wysiwyg/textWysiwyg";
 import ReactionsOverlay from "./ReactionsOverlay";
+import VoteOverlay from "./VoteOverlay";
+import StickyAuthorOverlay from "./StickyAuthorOverlay";
 import CommentPinsOverlay from "./CommentPinsOverlay";
 import CreateCommentOverlay from "./CreateCommentOverlay";
 import { isOverScrollBars } from "../scene/scrollbars";
@@ -2411,6 +2414,7 @@ class App extends React.Component<AppProps, AppState> {
                           )}
                       </ExcalidrawActionManagerContext.Provider>
                       <ReactionsOverlay />
+                      <StickyAuthorOverlay />
                       <CommentPinsOverlay />
                       <CreateCommentOverlay />
                       {this.renderEmbeddables()}
@@ -5628,10 +5632,7 @@ class App extends React.Component<AppProps, AppState> {
       isExistingElement?: boolean;
     },
   ) {
-    // Normalize sticky note to a text-like element so `textWysiwyg` can read
-    // `originalText` and other text-related properties on initial render.
     const normalizedElement: ExcalidrawTextElement = ((): ExcalidrawTextElement => {
-      // Runtime check - `isStickynoteElement` is imported in this file
       // @ts-ignore
       if (isStickynoteElement(element)) {
         const s = element as ExcalidrawStickynoteElement;
@@ -5693,106 +5694,11 @@ class App extends React.Component<AppProps, AppState> {
               ),
             });
           }
-          // handle sticky note elements: update `text` field and recompute dimensions
-          // create a temporary text-like element for dimension calculation
-          // do not overwrite freshly-created sticky note size when text is empty
           // @ts-ignore
           if (_element.id === element.id && isStickynoteElement(_element)) {
-            const s = _element as ExcalidrawStickynoteElement;
-            const fakeTextElement = ({
-              ...s,
-              // textElement shape expected by refreshTextDimensions
-              type: "text",
-              text: nextOriginalText,
-              originalText: nextOriginalText,
-              autoResize: false,
-              containerId: null,
-            } as unknown) as ExcalidrawTextElement;
-
-            let refreshed = refreshTextDimensions(
-              fakeTextElement,
-              null,
-              elementsMap,
-              nextOriginalText,
-            );
-
-            const shouldApplyDims = isExistingElement || nextOriginalText.trim().length > 0;
-
-            // Ensure text wraps to the stickynote's current width and do NOT
-            // change the sticky note dimensions when editing — keep fixed size
-            // and let the editor show scrollbars instead.
-            if (refreshed && isStickynoteElement(_element)) {
-              const s = _element as ExcalidrawStickynoteElement;
-              refreshed = {
-                ...refreshed,
-                // preserve the sticky note width and height — do not auto-grow
-                width: s.width ?? refreshed.width,
-                height: s.height ?? refreshed.height,
-              } as ReturnType<typeof refreshTextDimensions>;
-            }
-
-            // Reduce font size if text doesn't fit vertically inside the
-            // sticky note. We only shrink (never grow) and respect
-            // `MIN_FONT_SIZE`.
-            let scaledFontSize: number | null = null;
-            if (isStickynoteElement(_element)) {
-              const s = _element as ExcalidrawStickynoteElement;
-              const elementsMapForMeasure = elementsMap;
-              const originalFontSize = s.fontSize;
-              // if current refreshed height already fits, keep original font
-              if (refreshed && refreshed.height > (s.height ?? refreshed.height)) {
-                for (
-                  let fs = Math.max(MIN_FONT_SIZE, originalFontSize - 1);
-                  fs >= MIN_FONT_SIZE;
-                  fs--
-                ) {
-                  const fakeWithSmallerFont = ({
-                    ...fakeTextElement,
-                    fontSize: fs,
-                    width: s.width,
-                  } as unknown) as ExcalidrawTextElement;
-
-                  const candidate = refreshTextDimensions(
-                    fakeWithSmallerFont,
-                    null,
-                    elementsMapForMeasure,
-                    nextOriginalText,
-                  );
-                  if (!candidate) continue;
-                  // candidate.height is computed from fontSize and wrapping
-                  if ((candidate.height ?? 0) <= (s.height ?? candidate.height)) {
-                    scaledFontSize = fs;
-                    // update refreshed to the candidate so subsequent logic uses it
-                    refreshed = {
-                      ...candidate,
-                      width: s.width,
-                      height: s.height ?? candidate.height,
-                    } as ReturnType<typeof refreshTextDimensions>;
-                    break;
-                  }
-                }
-              }
-            }
-
-            try {
-              // eslint-disable-next-line no-console
-              console.debug(
-                "[dev] stickynote refreshTextDimensions",
-                _element.id,
-                "nextText=",
-                nextOriginalText,
-                "shouldApply=",
-                shouldApplyDims,
-                "refreshed=",
-                refreshed?.width,
-                refreshed?.height,
-              );
-            } catch (e) {}
-
             return newElementWith(_element, {
               text: nextOriginalText,
               isDeleted: isDeleted ?? _element.isDeleted,
-              ...(shouldApplyDims && refreshed ? refreshed : {}),
             });
           }
           return _element;
@@ -5826,8 +5732,6 @@ class App extends React.Component<AppProps, AppState> {
         const isDeleted = !nextOriginalText.trim();
         updateElement(nextOriginalText, isDeleted);
 
-        // select the created text element only if submitting via keyboard
-        // (when submitting via click it should act as signal to deselect)
         if (!isDeleted && viaKeyboard) {
           const elementIdToSelect = normalizedElement.containerId
             ? normalizedElement.containerId
@@ -5876,12 +5780,8 @@ class App extends React.Component<AppProps, AppState> {
       element: normalizedElement,
       excalidrawContainer: this.excalidrawContainerRef.current,
       app: this,
-      // when text is selected, it's hard (at least on iOS) to re-position the
-      // caret (i.e. deselect). There's not much use for always selecting
-      // the text on edit anyway (and users can select-all from contextmenu
-      // if needed)
-      // Don't auto-select when editing existing elements (only for new ones)
       autoSelect: !this.editorInterface.isTouchScreen && !isExistingElement,
+      isStickynote: isStickynoteElement(element),
     });
     // deselect all other elements when inserting text
     this.deselectElements();
@@ -6638,20 +6538,6 @@ class App extends React.Component<AppProps, AppState> {
       x: scenePointerX,
       y: scenePointerY,
     };
-    // DEV LOG: show active tool and editing state on pointer down
-    // remove before merging to mainline
-    try {
-      // eslint-disable-next-line no-console
-      console.debug(
-        "[dev] handleCanvasPointerDown",
-        this.state?.activeTool?.type,
-        "editingTextElement=",
-        !!this.state?.editingTextElement,
-      );
-    } catch (e) {
-      // ignore
-    }
-
     if (gesture.pointers.has(event.pointerId)) {
       gesture.pointers.set(event.pointerId, {
         x: event.clientX,
@@ -7880,8 +7766,6 @@ class App extends React.Component<AppProps, AppState> {
       return;
     }
 
-    // Single-click on a sticky note should open text editor (convenience)
-    // when using the selection tool and it was a quick click (no drag).
     const clicklength = this.lastPointerDownEvent
       ? event.timeStamp - this.lastPointerDownEvent.timeStamp
       : 0;
@@ -9242,36 +9126,22 @@ class App extends React.Component<AppProps, AppState> {
     elementType: ExcalidrawGenericElement["type"] | "embeddable" | "stickynote",
     pointerDownState: PointerDownState,
   ): void => {
-    // For stickynotes we want to place a 100x100 yellow note and open the
-    // text editor immediately (no grid snapping by default)
     if (elementType === "stickynote") {
       const x = pointerDownState.origin.x;
       const y = pointerDownState.origin.y;
-      // DEV LOG: trace stickynote creation branch
-      try {
-        // eslint-disable-next-line no-console
-        console.debug(
-          "[dev] createGenericElementOnPointerDown: stickynote",
-          "activeTool=",
-          this.state?.activeTool?.type,
-          "origin=",
-          pointerDownState.origin,
-        );
-      } catch (e) {
-        // ignore
-      }
 
       const topLayerFrame = this.getTopLayerFrameAtSceneCoords({ x, y });
 
+      const stickyFontFamily = FONT_FAMILY["Liberation Sans"];
       const element = newStickynoteElement({
         x,
         y,
         text: "",
-        fontSize: this.state.currentItemFontSize,
-        fontFamily: this.state.currentItemFontFamily,
+        fontSize: 14,
+        fontFamily: stickyFontFamily,
         textAlign: this.state.currentItemTextAlign,
         verticalAlign: DEFAULT_VERTICAL_ALIGN,
-        lineHeight: getLineHeight(this.state.currentItemFontFamily),
+        lineHeight: getLineHeight(stickyFontFamily),
         backgroundColor: COLOR_STICKYNOTE_YELLOW,
         strokeColor: this.state.currentItemStrokeColor,
         opacity: this.state.currentItemOpacity,
@@ -9284,20 +9154,7 @@ class App extends React.Component<AppProps, AppState> {
       element.height = 100;
 
       this.scene.insertElement(element);
-      try {
-        // eslint-disable-next-line no-console
-        console.debug(
-          "[dev] stickynote inserted",
-          element.id,
-          "w=",
-          element.width,
-          "h=",
-          element.height,
-        );
-      } catch (e) {}
       this.setState({ multiElement: null, newElement: element, editingTextElement: element });
-      // Defer wysiwyg to avoid immediate submit from the original pointerdown
-      // event that created the sticky note.
       requestAnimationFrame(() =>
         this.handleTextWysiwyg(element as any, { isExistingElement: false }),
       );

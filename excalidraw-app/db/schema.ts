@@ -60,3 +60,28 @@ export const reactionSchema: RxJsonSchema<ReactionDocType> = {
   required: ["id", "boardId", "elementId", "emoji", "userId"],
   indexes: ["boardId", "elementId"],
 };
+
+export type VoteDocType = {
+  id: string;
+  boardId: string;
+  elementId: string;
+  userId: string;
+  color: string;
+  time: number;
+};
+
+export const voteSchema: RxJsonSchema<VoteDocType> = {
+  version: 0,
+  primaryKey: "id",
+  type: "object",
+  properties: {
+    id:        { type: "string", maxLength: 128 },
+    boardId:   { type: "string", maxLength: 128 },
+    elementId: { type: "string", maxLength: 128 },
+    userId:    { type: "string", maxLength: 128 },
+    color:     { type: "string", maxLength: 32  },
+    time:      { type: "number" },
+  },
+  required: ["id", "boardId", "elementId", "userId", "color", "time"],
+  indexes: ["boardId", "elementId"],
+};

@@ -581,6 +581,14 @@ export type ElementReaction = {
   userIds: string[];
 };
 
+export type Vote = {
+  id: string;
+  elementId: string;
+  userId: string;
+  color: string;
+  time: number;
+};
+
 export interface ExcalidrawProps {
   onChange?: (
     elements: readonly OrderedExcalidrawElement[],
@@ -710,6 +718,9 @@ export interface ExcalidrawProps {
   onCommentEdit?: (commentId: string, text: string) => void;
   /** Current user info used for authoring comments/reactions */
   currentUser?: CommentAuthor;
+  // ─── Votes ──────────────────────────────────────────────────────────────────
+  votes?: Vote[];
+  onVote?: (elementId: string, userId: string, color: string) => void;
 }
 
 export type SceneData = {

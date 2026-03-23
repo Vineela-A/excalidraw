@@ -147,6 +147,7 @@ import { AppSidebar } from "./components/AppSidebar";
 import { DbProvider, useDb } from "./db/index";
 import { useCommentPins } from "./db/useCommentPins";
 import { useReactions } from "./db/useReactions";
+import { useVotes } from "./db/useVotes";
 
 import type { CollabAPI } from "./collab/Collab";
 import type { CommentAuthor } from "@excalidraw/excalidraw/types";
@@ -407,6 +408,7 @@ const ExcalidrawWrapper = () => {
   const db = useDb();
   const commentPins = useCommentPins(boardId);
   const reactions = useReactions(boardId);
+  const votes = useVotes(boardId);
 
   // Current user — in a real app wire this to your auth provider
   const currentUser: CommentAuthor = {
@@ -446,6 +448,23 @@ const ExcalidrawWrapper = () => {
   const onCommentReplyDelete: React.ComponentProps<typeof Excalidraw>["onCommentReplyDelete"] = async (replyId) => {
     const doc = await db.comments.findOne(replyId).exec();
     await doc?.remove();
+  };
+
+  const onVote: React.ComponentProps<typeof Excalidraw>["onVote"] = async (elementId, userId, color) => {
+    const reactionId = `vote-${elementId}-${userId}`;
+    const existing = await db.votes.findOne(reactionId).exec();
+    if (existing) {
+      await existing.remove();
+    } else {
+      await db.votes.insert({
+        id: reactionId,
+        boardId,
+        elementId,
+        userId,
+        color,
+        time: Date.now(),
+      });
+    }
   };
 
   const onCommentReply: React.ComponentProps<typeof Excalidraw>["onCommentReply"] = async (pinId, text, author) => {
@@ -816,6 +835,37 @@ const ExcalidrawWrapper = () => {
         window.devicePixelRatio,
       );
     }
+
+    // Stamp new stickynotes with current user as author (stored in customData
+    // so the StickyAuthorOverlay can read it without a separate DB collection).
+    const stickiesNeedingAuthor = elements.filter(
+      (el) =>
+        el.type === "stickynote" &&
+        !el.isDeleted &&
+        !(el as any).customData?.authorId,
+    );
+    if (stickiesNeedingAuthor.length > 0 && excalidrawAPI) {
+      const stampIds = new Set(stickiesNeedingAuthor.map((el) => el.id));
+      const updated = excalidrawAPI
+        .getSceneElementsIncludingDeleted()
+        .map((el) => {
+          if (!stampIds.has(el.id)) return el;
+          return newElementWith(el, {
+            customData: {
+              ...(el as any).customData,
+              authorId: currentUser.id,
+              authorName: currentUser.name,
+              ...(currentUser.avatarColor
+                ? { authorColor: currentUser.avatarColor }
+                : {}),
+            },
+          });
+        });
+      excalidrawAPI.updateScene({
+        elements: updated,
+        captureUpdate: CaptureUpdateAction.NEVER,
+      });
+    }
   };
 
   const [latestShareableLink, setLatestShareableLink] = useState<string | null>(
@@ -1003,6 +1053,8 @@ const ExcalidrawWrapper = () => {
         onCommentReaction={onCommentReaction}
         onCommentEdit={onCommentEdit}
         onCommentReplyDelete={onCommentReplyDelete}
+        votes={votes}
+        onVote={onVote}
         renderTopRightUI={(isMobile) => {
           if (isMobile || !collabAPI || isCollabDisabled) {
             return null;

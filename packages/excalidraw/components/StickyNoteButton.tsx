@@ -1,15 +1,30 @@
 import React, { useState } from "react";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { newStickynoteElement } from "@excalidraw/element";
-import { COLOR_STICKYNOTE_YELLOW } from "@excalidraw/common";
 
-// Miro-style sticky note colors
+// 18 Miro-inspired sticky note colors (3 rows × 6 cols)
 const STICKY_COLORS = [
-  { label: "Yellow", value: COLOR_STICKYNOTE_YELLOW },
-  { label: "Pink",   value: "#ffd6e7" },
-  { label: "Blue",   value: "#cce5ff" },
-  { label: "Green",  value: "#d4edda" },
-  { label: "Lavender", value: "#e2d9f3" },
+  // Row 1 — vivid warm
+  { label: "Yellow",       value: "#FFDD57" },
+  { label: "Orange",       value: "#FF9F47" },
+  { label: "Coral",        value: "#FF7B6B" },
+  { label: "Red",          value: "#FF5252" },
+  { label: "Pink",         value: "#FF5FA0" },
+  { label: "Purple",       value: "#B884F7" },
+  // Row 2 — vivid cool
+  { label: "Violet",       value: "#6B76F0" },
+  { label: "Blue",         value: "#3E85F3" },
+  { label: "Sky",          value: "#57BEFF" },
+  { label: "Teal",         value: "#00BFA5" },
+  { label: "Green",        value: "#56D17E" },
+  { label: "Lime",         value: "#B3D941" },
+  // Row 3 — pastels / light
+  { label: "Light Yellow", value: "#FFF9C4" },
+  { label: "Light Orange", value: "#FFEACC" },
+  { label: "Light Pink",   value: "#FFD6E8" },
+  { label: "Light Blue",   value: "#D1EBFF" },
+  { label: "Light Green",  value: "#D7F5E3" },
+  { label: "Light Gray",   value: "#F0F0F0" },
 ];
 
 type Props = {
@@ -55,8 +70,7 @@ const StickyNoteButton: React.FC<Props> = ({ api }) => {
       appState: { selectedElementIds: { [sticky.id]: true } as any },
     } as any);
 
-    // Trigger text editing by dispatching a dblclick-like event on the element
-    // after a short delay so the scene has updated
+    // Trigger text editing after scene update
     setTimeout(() => {
       const ev = new CustomEvent("excalidraw:editStickynote", {
         detail: { id: sticky.id },
@@ -71,7 +85,7 @@ const StickyNoteButton: React.FC<Props> = ({ api }) => {
         type="button"
         className="excalidraw-add-sticky"
         onClick={() => setPickerOpen((s) => !s)}
-        title="Add sticky note"
+        title="Add sticky note (S)"
       >
         Add Sticky
       </button>
@@ -87,8 +101,10 @@ const StickyNoteButton: React.FC<Props> = ({ api }) => {
             borderRadius: 10,
             boxShadow: "0 8px 24px rgba(0,0,0,0.12)",
             padding: 8,
-            display: "flex",
-            gap: 8,
+            display: "grid",
+            gridTemplateColumns: "repeat(6, 1fr)",
+            gap: 6,
+            width: 228,
             zIndex: 10020,
           }}
         >
@@ -103,9 +119,8 @@ const StickyNoteButton: React.FC<Props> = ({ api }) => {
                 height: 28,
                 borderRadius: 6,
                 background: c.value,
-                border: "2px solid rgba(0,0,0,0.12)",
+                border: "2px solid rgba(0,0,0,0.10)",
                 cursor: "pointer",
-                flexShrink: 0,
               }}
             />
           ))}

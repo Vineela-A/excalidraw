@@ -73,6 +73,8 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     onReactionToggle,
     onCommentReaction,
     onCommentEdit,
+    votes,
+    onVote,
   } = props;
 
   const canvasActions = props.UIOptions?.canvasActions;
@@ -176,6 +178,8 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           onReactionToggle={onReactionToggle}
           onCommentReaction={onCommentReaction}
           onCommentEdit={onCommentEdit}
+          votes={votes}
+          onVote={onVote}
         >
           {children}
         </App>

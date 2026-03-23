@@ -42,6 +42,8 @@ const ReactionsOverlay: React.FC = () => {
       {Array.from(byElement.entries()).map(([elementId, elementReactions]) => {
         const el = elementsMap.get(elementId);
         if (!el) return null;
+        // Stickynotes have their own StickyReactionBar — skip here
+        if (el.type === "stickynote") return null;
 
         const [absX, absY] = getElementAbsoluteCoords(el, elementsMap as any);
         const { x: vpX, y: vpY } = sceneCoordsToViewportCoords(

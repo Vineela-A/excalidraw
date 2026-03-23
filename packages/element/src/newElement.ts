@@ -5,6 +5,7 @@ import {
   DEFAULT_FONT_SIZE,
   DEFAULT_TEXT_ALIGN,
   DEFAULT_VERTICAL_ALIGN,
+  FONT_FAMILY,
   VERTICAL_ALIGN,
   randomInteger,
   randomId,
@@ -74,17 +75,13 @@ export const newStickynoteElement = (
     customData?: Record<string, any>;
   },
 ): NonDeleted<ExcalidrawStickynoteElement> => {
-  const fontFamily = opts.fontFamily || DEFAULT_FONT_FAMILY;
-  // default sticky-note font size slightly smaller than the global default
-  // reduce by default to fit more text in sticky notes
-  const fontSize = opts.fontSize || 12;
-  // Brand lineHeight as unitlessLineHeight
+  const fontFamily = opts.fontFamily || FONT_FAMILY["Liberation Sans"];
+  const fontSize = opts.fontSize || 14;
   const rawLineHeight = opts.lineHeight || getLineHeight(fontFamily);
   const lineHeight = rawLineHeight as number & { _brand: "unitlessLineHeight" };
   const text = normalizeText(opts.text);
   const width = opts.width || 140;
   const height = opts.height || 100;
-  // Ensure index is FractionalIndex|null
   const index = opts.index as (string & { _brand: "franctionalIndex" }) | null ?? null;
   return {
     ..._newElementBase<ExcalidrawStickynoteElement>("stickynote", {

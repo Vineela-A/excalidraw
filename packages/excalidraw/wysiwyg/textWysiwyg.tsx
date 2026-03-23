@@ -39,6 +39,7 @@ import {
   isArrowElement,
   isBoundToContainer,
   isTextElement,
+  isStickynoteElement,
 } from "@excalidraw/element";
 
 import type {
@@ -122,11 +123,6 @@ export const textWysiwyg = ({
   autoSelect?: boolean;
   isStickynote?: boolean;
 }): SubmitHandler => {
-  // Debug: trace entry so we can verify this function is invoked at runtime
-  // and inspect provided params when troubleshooting wysiwyg creation.
-  // Remove these logs after debugging.
-  // eslint-disable-next-line no-console
-  console.debug("[dev] textWysiwyg invoked", { id, elementId: element.id, hasExcalidrawContainer: !!excalidrawContainer });
   const textPropertiesUpdated = (
     updatedTextElement: ExcalidrawTextElement,
     editable: HTMLTextAreaElement,
@@ -160,7 +156,7 @@ export const textWysiwyg = ({
     }
     const { textAlign, verticalAlign } = updatedTextElement;
     const elementsMap = app.scene.getNonDeletedElementsMap();
-    if (updatedTextElement && isTextElement(updatedTextElement)) {
+    if (updatedTextElement && (isTextElement(updatedTextElement) || isStickynoteElement(updatedTextElement))) {
       let coordX = updatedTextElement.x;
       let coordY = updatedTextElement.y;
       const container = getContainerElement(
@@ -169,9 +165,6 @@ export const textWysiwyg = ({
       );
 
       let width = updatedTextElement.width;
-
-      // set to element height by default since that's
-      // what is going to be used for unbounded text
       let height = updatedTextElement.height;
 
       let maxWidth = updatedTextElement.width;
@@ -215,7 +208,6 @@ export const textWysiwyg = ({
           updatedTextElement as ExcalidrawTextElementWithContainer,
         );
 
-        // autogrow container height if text exceeds
         if (!isArrowElement(container) && height > maxHeight) {
           const targetContainerHeight = computeContainerDimensionForBoundText(
             height,
@@ -226,8 +218,6 @@ export const textWysiwyg = ({
           updateBoundElements(container, app.scene);
           return;
         } else if (
-          // autoshrink container height until original container height
-          // is reached when text is removed
           !isArrowElement(container) &&
           container.height > originalContainerData.height &&
           height < maxHeight
@@ -254,32 +244,31 @@ export const textWysiwyg = ({
         maxWidth = (appState.width - 8 - viewportX) / appState.zoom.value;
         width = Math.min(width, maxWidth);
         
-        // Account for sticky note internal padding (4px on each side)
-        // to match the rendering in renderElement.ts
         if (isStickynote) {
           const STICKY_NOTE_PADDING = 4;
           width = Math.max(20, width - STICKY_NOTE_PADDING * 2);
+          maxWidth = width;
         }
       } else {
         width += 0.5;
       }
 
-      // add 5% buffer otherwise it causes wysiwyg to jump
-      height *= 1.05;
+      if (!isStickynote) {
+        height *= 1.05;
+      }
 
       const font = getFontString(updatedTextElement);
 
-      // Make sure text editor height doesn't go beyond viewport
-      const editorMaxHeight =
-        (appState.height - viewportY) / appState.zoom.value;
+      const editorMaxHeight = isStickynote
+        ? (updatedTextElement.height - 8) / appState.zoom.value
+        : (appState.height - viewportY) / appState.zoom.value;
       Object.assign(editable.style, {
         font,
-        // must be defined *after* font ¯\_(ツ)_/¯
         lineHeight: updatedTextElement.lineHeight,
         width: `${width}px`,
-        height: `${height}px`,
-        left: `${viewportX}px`,
-        top: `${viewportY}px`,
+        height: `${isStickynote ? (updatedTextElement.height - 8) / appState.zoom.value : height}px`,
+        left: `${viewportX + (isStickynote ? 4 * appState.zoom.value : 0)}px`,
+        top: `${viewportY + (isStickynote ? 4 * appState.zoom.value : 0)}px`,
         transform: getTransform(
           width,
           height,
@@ -296,15 +285,12 @@ export const textWysiwyg = ({
             : updatedTextElement.strokeColor,
         opacity: updatedTextElement.opacity / 100,
         maxHeight: `${editorMaxHeight}px`,
-        // Set caret color to match text color for visibility
         caretColor:
           appState.theme === THEME.DARK
             ? applyDarkModeFilter(updatedTextElement.strokeColor)
             : updatedTextElement.strokeColor,
       });
       editable.scrollTop = 0;
-      // For some reason updating font attribute doesn't set font family
-      // hence updating font family explicitly for test environment
       if (isTestEnv()) {
         editable.style.fontFamily = getFontFamilyString(updatedTextElement);
       }
@@ -318,8 +304,6 @@ export const textWysiwyg = ({
   editable.dir = "auto";
   editable.tabIndex = 0;
   editable.dataset.type = "wysiwyg";
-  // Enable line wrapping for bound or non-autoResize elements (e.g. stickynotes)
-  // otherwise keep wrapping off to mimic unbounded text behavior.
   editable.wrap = isBoundToContainer(element) || !element.autoResize ? "soft" : "off";
   editable.classList.add("excalidraw-wysiwyg");
 
@@ -341,16 +325,12 @@ export const textWysiwyg = ({
     outline: 0,
     resize: "none",
     background: "transparent",
-    // Prefer vertical scrolling for fixed-size editors (stickynotes)
     overflowY: isBoundToContainer(element) || !element.autoResize ? "auto" : "hidden",
     overflowX: "hidden",
-    // must be specified because in dark mode canvas creates a stacking context
     zIndex: "var(--zIndex-wysiwyg)",
-    // Ensure the textarea itself handles pointer events and shows a text cursor
     pointerEvents: "auto",
     cursor: "text",
     wordBreak,
-    // prevent line wrapping (`whitespace: nowrap` doesn't work on FF)
     whiteSpace,
     overflowWrap: "break-word",
     boxSizing: "content-box",
@@ -835,22 +815,19 @@ export const textWysiwyg = ({
 
   editable.onpointerdown = (event) => event.stopPropagation();
 
-  // rAF (+ capture to by doubly sure) so we don't catch te pointerdown that
-  // triggered the wysiwyg
+  if (isStickynote) {
+    editable.addEventListener("wheel", (event) => event.stopPropagation(), { passive: true });
+  }
+
   requestAnimationFrame(() => {
     window.addEventListener("pointerdown", onPointerDown, { capture: true });
   });
   window.addEventListener("beforeunload", handleSubmit);
-  // If `excalidrawContainer` is not available (race or ref not set),
-  // fall back to querying the document for the container so the
-  // wysiwyg textarea still gets appended in production builds.
   const textEditorContainer =
     excalidrawContainer?.querySelector(".excalidraw-textEditorContainer") ||
     document.querySelector(".excalidraw-textEditorContainer");
 
   textEditorContainer?.appendChild(editable);
-  // eslint-disable-next-line no-console
-  console.debug("[dev] textWysiwyg appended editable", { id, container: !!textEditorContainer, containerChildCount: textEditorContainer?.childElementCount });
 
   return handleSubmit;
 };

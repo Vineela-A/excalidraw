@@ -7,9 +7,9 @@ import { wrappedValidateAjvStorage } from "rxdb/plugins/validate-ajv";
 import { RxDBDevModePlugin, disableWarnings } from "rxdb/plugins/dev-mode";
 import { RxDBMigrationSchemaPlugin } from "rxdb/plugins/migration-schema";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { commentSchema, reactionSchema } from "./schema";
+import { commentSchema, reactionSchema, voteSchema } from "./schema";
 import type { RxDatabase, RxCollection, RxStorage } from "rxdb";
-import type { CommentDocType, ReactionDocType } from "./schema";
+import type { CommentDocType, ReactionDocType, VoteDocType } from "./schema";
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -23,11 +23,11 @@ addRxPlugin(RxDBMigrationSchemaPlugin);
 // Bump this constant whenever the schema changes in a breaking way instead of
 // relying on RxDB migrations, which can't handle Dexie's non-required index
 // restriction during the migration-open phase.
-const DB_NAME = "excalidraw_collab_v2";
+const DB_NAME = "excalidraw_collab_v3";
 
 // Names of every IDB database RxDB may have created for this project.
 // Keep old names here so they get cleaned up on the next load.
-const LEGACY_DB_NAMES = ["excalidraw_collab", "excalidraw_collab_v2"];
+const LEGACY_DB_NAMES = ["excalidraw_collab", "excalidraw_collab_v2", "excalidraw_collab_v3"];
 
 function getStorage(): RxStorage<any, any> {
   const base = getRxStorageDexie();
@@ -38,6 +38,7 @@ function getStorage(): RxStorage<any, any> {
 export type AppDatabase = RxDatabase<{
   comments: RxCollection<CommentDocType>;
   reactions: RxCollection<ReactionDocType>;
+  votes: RxCollection<VoteDocType>;
 }>;
 
 /** Delete a single IndexedDB database by name, resolving when done. */
@@ -73,6 +74,7 @@ async function createDb(): Promise<AppDatabase> {
   const db = await createRxDatabase<{
     comments: RxCollection<CommentDocType>;
     reactions: RxCollection<ReactionDocType>;
+    votes: RxCollection<VoteDocType>;
   }>({
     name: DB_NAME,
     storage: getStorage(),
@@ -81,6 +83,7 @@ async function createDb(): Promise<AppDatabase> {
   await db.addCollections({
     comments: { schema: commentSchema },
     reactions: { schema: reactionSchema },
+    votes: { schema: voteSchema },
   });
   return db;
 }

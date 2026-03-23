@@ -426,6 +426,7 @@ import StickyAuthorOverlay from "./StickyAuthorOverlay";
 import CommentPinsOverlay from "./CommentPinsOverlay";
 import CreateCommentOverlay from "./CreateCommentOverlay";
 import EmojiStickerOverlay from "./EmojiStickerOverlay";
+import TemplateLibrary from "./TemplateLibrary";
 import { isOverScrollBars } from "../scene/scrollbars";
 
 import { isMaybeMermaidDefinition } from "../mermaid";
@@ -2419,6 +2420,7 @@ class App extends React.Component<AppProps, AppState> {
                       <CommentPinsOverlay />
                       <CreateCommentOverlay />
                       <EmojiStickerOverlay />
+                      <TemplateLibrary />
                       {this.renderEmbeddables()}
                     </ExcalidrawElementsContext.Provider>
                   </ExcalidrawAppStateContext.Provider>

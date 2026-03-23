@@ -201,6 +201,16 @@ export const EmojiStickerIcon = createIcon(
   modifiedTablerIconProps,
 );
 
+export const TemplatesIcon = createIcon(
+  <g fill="none" strokeWidth={1.4} stroke="currentColor" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="2" y="2" width="8" height="8" rx="1.5" />
+    <rect x="12" y="2" width="8" height="8" rx="1.5" />
+    <rect x="2" y="12" width="8" height="8" rx="1.5" />
+    <rect x="12" y="12" width="8" height="8" rx="1.5" />
+  </g>,
+  modifiedTablerIconProps,
+);
+
 export const polygonIcon = createIcon(
   <g strokeWidth={1.25}>
     <path stroke="none" d="M0 0h24v24H0z" fill="none" />

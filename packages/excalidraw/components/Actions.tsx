@@ -85,6 +85,7 @@ import {
   pencilIcon,
   CommentIcon,
   EmojiStickerIcon,
+  TemplatesIcon,
 } from "./icons";
 import FullEmojiPicker from "./FullEmojiPicker";
 
@@ -1231,6 +1232,15 @@ export const ShapesSwitcher = ({
           onClose={() => setEmojiPickerOpen(false)}
         />
       )}
+      <ToolButton
+        type="icon"
+        icon={TemplatesIcon}
+        aria-label="Template Library"
+        title="Template Library"
+        onClick={() => {
+          window.dispatchEvent(new CustomEvent("excalidraw:openTemplateLibrary"));
+        }}
+      />
       <div className="App-toolbar__divider" />
 
       <DropdownMenu open={isExtraToolsMenuOpen}>

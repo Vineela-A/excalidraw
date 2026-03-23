@@ -169,21 +169,34 @@ export const PinIcon = createIcon(
   tablerIconProps,
 );
 
-// simple reaction (smiley) icon
 export const ReactionIcon = createIcon(
-  <g strokeWidth={1.25} fill="none">
-    <circle cx="12" cy="12" r="9" stroke="currentColor" />
-    <path d="M8.5 10.5c.75 1 2 1 3 1s2.25-.05 3-.9" stroke="currentColor" />
-    <circle cx="9" cy="10" r="1" fill="currentColor" />
-    <circle cx="15" cy="10" r="1" fill="currentColor" />
+  <g fill="none">
+    <circle cx="10" cy="11" r="8.5" stroke="currentColor" strokeWidth={1.4} />
+    <circle cx="7.5" cy="9.5" r="1.1" fill="currentColor" />
+    <circle cx="12.5" cy="9.5" r="1.1" fill="currentColor" />
+    <path d="M7 13.5 Q10 16 13 13.5" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" />
+    <circle cx="16.5" cy="5.5" r="3.5" fill="currentColor" />
+    <line x1="16.5" y1="3.8" x2="16.5" y2="7.2" stroke="white" strokeWidth={1.3} strokeLinecap="round" />
+    <line x1="14.8" y1="5.5" x2="18.2" y2="5.5" stroke="white" strokeWidth={1.3} strokeLinecap="round" />
   </g>,
   modifiedTablerIconProps,
 );
 
-// simple comment (speech bubble) icon
 export const CommentIcon = createIcon(
-  <g strokeWidth={1.25} fill="none">
-    <path d="M5 7a5 5 0 0 1 5-5h4a5 5 0 0 1 5 5v4a5 5 0 0 1-5 5H11l-4 3v-3H8" stroke="currentColor" />
+  <g fill="none" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 6.5C4 5.12 5.12 4 6.5 4h7C14.88 4 16 5.12 16 6.5v5c0 1.38-1.12 2.5-2.5 2.5H11l-3 2.5V14H6.5C5.12 14 4 12.88 4 11.5v-5z" stroke="currentColor" />
+    <line x1="7" y1="8" x2="13" y2="8" stroke="currentColor" />
+    <line x1="7" y1="11" x2="11" y2="11" stroke="currentColor" />
+  </g>,
+  modifiedTablerIconProps,
+);
+
+export const EmojiStickerIcon = createIcon(
+  <g fill="none">
+    <circle cx="10" cy="10" r="8.5" stroke="currentColor" strokeWidth={1.4} />
+    <circle cx="7.5" cy="8.5" r="1.1" fill="currentColor" />
+    <circle cx="12.5" cy="8.5" r="1.1" fill="currentColor" />
+    <path d="M6.5 12.5 Q10 15.5 13.5 12.5" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" fill="none" />
   </g>,
   modifiedTablerIconProps,
 );

@@ -29,34 +29,15 @@ export const COMMENT_AVATAR_RADIUS = 18;
 export const COMMENT_REPLY_AVATAR_SIZE = 28;
 export const COMMENT_REPLY_AVATAR_RADIUS = 14;
 
-export const SMILE_PLUS_SVG = `
-<svg xmlns="http://www.w3.org/2000/svg"
-     viewBox="0 0 24 24"
-     width="24"
-     height="24"
-     fill="none"
-     stroke="#8A8F98"
-     stroke-width="2"
-     stroke-linecap="round"
-     stroke-linejoin="round">
-
-  <!-- Circle with gap at top-right -->
-  <path d="M4 12a8 8 0 0 1 14-5"/>
-  <path d="M20 12a8 8 0 0 1-8 8a8 8 0 0 1-8-8"/>
-
-  <!-- Eyes -->
-  <circle cx="9" cy="10" r="1" fill="#8A8F98" stroke="none"/>
-  <circle cx="13" cy="10" r="1" fill="#8A8F98" stroke="none"/>
-
-  <!-- Smile -->
-  <path d="M9 14c1.4 1.2 3.6 1.2 5 0"/>
-
-  <!-- Plus -->
-  <line x1="18" y1="4" x2="18" y2="8"/>
-  <line x1="16" y1="6" x2="20" y2="6"/>
-
-</svg>
-`;
+export const SMILE_PLUS_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 22 22" width="22" height="22">
+  <circle cx="10" cy="11" r="9" fill="#f0f0f0"/>
+  <circle cx="7.5" cy="9.5" r="1.2" fill="#555"/>
+  <circle cx="12.5" cy="9.5" r="1.2" fill="#555"/>
+  <path d="M7 13.5 Q10 16 13 13.5" fill="none" stroke="#555" stroke-width="1.5" stroke-linecap="round"/>
+  <circle cx="17" cy="6" r="4" fill="#6366f1"/>
+  <line x1="17" y1="3.8" x2="17" y2="8.2" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+  <line x1="14.8" y1="6" x2="19.2" y2="6" stroke="#fff" stroke-width="1.5" stroke-linecap="round"/>
+</svg>`;
 
 export const SPEECH_SVG = `
 <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' preserveAspectRatio='xMidYMid meet'>

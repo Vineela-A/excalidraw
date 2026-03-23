@@ -94,6 +94,7 @@
     "path-scurry": "1.11.1"
   },
   "dependencies": {
+    "emoji-picker-react": "4.18.0",
     "tinycolor2": "1.6.0"
   }
 }

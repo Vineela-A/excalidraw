@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { useRef, useState } from "react";
+import { useRef, useState, useCallback } from "react";
 import { Popover } from "radix-ui";
 
 import {
@@ -20,6 +20,7 @@ import {
   isArrowElement,
   hasStrokeColor,
   toolIsArrow,
+  newTextElement,
 } from "@excalidraw/element";
 
 import type {
@@ -82,9 +83,10 @@ import {
   DotsHorizontalIcon,
   SelectionIcon,
   pencilIcon,
-  ReactionIcon,
   CommentIcon,
+  EmojiStickerIcon,
 } from "./icons";
+import FullEmojiPicker from "./FullEmojiPicker";
 
 import { Island } from "./Island";
 
@@ -1052,9 +1054,27 @@ export const ShapesSwitcher = ({
   UIOptions: AppProps["UIOptions"];
 }) => {
   const [isExtraToolsMenuOpen, setIsExtraToolsMenuOpen] = useState(false);
+  const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
+  const emojiStickerBtnRef = useRef<HTMLElement>(null);
   const stylesPanelMode = useStylesPanelMode();
   const isFullStylesPanel = stylesPanelMode === "full";
   const isCompactStylesPanel = stylesPanelMode === "compact";
+
+  const handleEmojiStickerSelect = useCallback(
+    (emoji: string) => {
+      setEmojiPickerOpen(false);
+      const element = newTextElement({
+        x: 0,
+        y: 0,
+        text: emoji,
+        fontSize: 40,
+        opacity: 100,
+        customData: { isEmojiSticker: true },
+      });
+      app.onInsertElements([element]);
+    },
+    [app],
+  );
 
   const SELECTION_TOOLS = [
     {
@@ -1197,18 +1217,20 @@ export const ShapesSwitcher = ({
         }}
       />
       <ToolButton
+        ref={emojiStickerBtnRef}
         type="icon"
-        icon={ReactionIcon}
-        aria-label={t("toolBar.reactions")}
-        title={t("toolBar.reactions")}
-        onClick={() => {
-          const ev = new CustomEvent("excalidraw:openReactionsPicker", {
-            bubbles: true,
-            detail: {},
-          });
-          window.dispatchEvent(ev);
-        }}
+        icon={EmojiStickerIcon}
+        aria-label="Emoji sticker"
+        title="Emoji sticker"
+        onClick={() => setEmojiPickerOpen((v) => !v)}
       />
+      {emojiPickerOpen && emojiStickerBtnRef.current && (
+        <FullEmojiPicker
+          anchorEl={emojiStickerBtnRef.current}
+          onSelect={handleEmojiStickerSelect}
+          onClose={() => setEmojiPickerOpen(false)}
+        />
+      )}
       <div className="App-toolbar__divider" />
 
       <DropdownMenu open={isExtraToolsMenuOpen}>

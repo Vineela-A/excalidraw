@@ -26,8 +26,9 @@ const StickyReactionBar: React.FC = () => {
   const [hoveredId, setHoveredId]   = useState<string | null>(null);
   const [openPicker, setOpenPicker] = useState<string | null>(null);
   const [expanded, setExpanded]     = useState<Set<string>>(new Set());
-  const leaveTimer   = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const hoveredIdRef = useRef<string | null>(null);
+  const leaveTimer      = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoveredIdRef    = useRef<string | null>(null);
+  const barHoveredRef   = useRef(false);
 
   const userId = currentUser?.id ?? "anon";
 
@@ -64,12 +65,14 @@ const StickyReactionBar: React.FC = () => {
           hoveredIdRef.current = found;
           setHoveredId(found);
         }
-      } else if (!leaveTimer.current) {
+      } else if (!barHoveredRef.current && !leaveTimer.current) {
         leaveTimer.current = setTimeout(() => {
-          hoveredIdRef.current = null;
-          setHoveredId(null);
+          if (!barHoveredRef.current) {
+            hoveredIdRef.current = null;
+            setHoveredId(null);
+          }
           leaveTimer.current = null;
-        }, 150);
+        }, 300);
       }
     };
 
@@ -130,6 +133,22 @@ const StickyReactionBar: React.FC = () => {
           <div
             key={el.id}
             style={{ position: "absolute", left, top, zIndex: 10004, pointerEvents: "auto", userSelect: "none" }}
+            onMouseEnter={() => {
+              barHoveredRef.current = true;
+              if (leaveTimer.current) { clearTimeout(leaveTimer.current); leaveTimer.current = null; }
+              hoveredIdRef.current = el.id;
+              setHoveredId(el.id);
+            }}
+            onMouseLeave={() => {
+              barHoveredRef.current = false;
+              leaveTimer.current = setTimeout(() => {
+                if (!barHoveredRef.current) {
+                  hoveredIdRef.current = null;
+                  setHoveredId(null);
+                }
+                leaveTimer.current = null;
+              }, 300);
+            }}
           >
             {!isPickerOpen && (
               <div style={{

@@ -148,7 +148,8 @@
   .welcome-screen-center__heading {
     font-size: 1.125rem;
     text-align: center;
-    line-height: 1.35rem;
+    line-height: 1.6;
+    max-width: 360px;
   }
 
   .welcome-screen-menu {
@@ -166,6 +167,7 @@
 
     color: var(--color-gray-50);
     font-size: 0.875rem;
+    transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 
     width: 100%;
     min-width: 300px;
@@ -189,17 +191,20 @@
       margin-right: auto;
       text-align: left;
       column-gap: 0.5rem;
+      transition: color 0.15s ease;
     }
 
     &__icon {
       width: var(--default-icon-size);
       height: var(--default-icon-size);
+      transition: color 0.15s ease;
     }
 
     &__shortcut {
       margin-left: auto;
       color: var(--color-gray-40);
       font-size: 0.75rem;
+      transition: color 0.15s ease;
     }
   }
 

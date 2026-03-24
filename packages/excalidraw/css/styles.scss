@@ -221,7 +221,7 @@ body.excalidraw-cursor-resize * {
   .buttonList label:focus-within,
   input:focus-visible {
     outline: transparent;
-    box-shadow: 0 0 0 1px var(--color-brand-hover);
+    box-shadow: 0 0 0 2px var(--focus-highlight-color);
   }
 
   // radix doesn't allow differntiating between hover and keyboard active

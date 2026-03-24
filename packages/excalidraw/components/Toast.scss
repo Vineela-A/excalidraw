@@ -5,15 +5,17 @@
     $closeButtonSize: 1.2rem;
     $closeButtonPadding: 0.4rem;
 
-    animation: fade-in 0.5s;
-    background-color: var(--button-gray-1);
-    border-radius: 4px;
+    animation: fade-in 0.3s ease-out;
+    background-color: var(--island-bg-color);
+    border: 1px solid var(--color-gray-20);
+    border-radius: var(--border-radius-md);
+    box-shadow: var(--shadow-island);
     bottom: 10px;
     box-sizing: border-box;
     cursor: default;
     left: 50%;
     margin-left: -150px;
-    padding: 4px 0;
+    padding: 6px 0;
     position: absolute;
     text-align: center;
     width: 300px;

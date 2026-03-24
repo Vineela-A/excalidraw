@@ -50,6 +50,9 @@ export const Toast = ({
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
       style={style}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
     >
       <p className="Toast__message">{message}</p>
       {closable && (

@@ -718,6 +718,7 @@ export interface ExcalidrawProps {
   onCommentEdit?: (commentId: string, text: string) => void;
   /** Current user info used for authoring comments/reactions */
   currentUser?: CommentAuthor;
+  getMentionSuggestions?: (query: string) => Array<{ id: string; name: string }>;
   // ─── Votes ──────────────────────────────────────────────────────────────────
   votes?: Vote[];
   onVote?: (elementId: string, userId: string, color: string) => void;

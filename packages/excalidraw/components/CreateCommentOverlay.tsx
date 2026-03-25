@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { useMention, MentionDropdown } from "./MentionInput";
 import { useApp, useAppProps } from "./App";
 import { sceneCoordsToViewportCoords } from "@excalidraw/common";
 import { COMMENT_FONT_FAMILY, COMMENT_FONT_SIZE_MD, COMMENT_ACCENT_COLOR } from "../src/commentConstants";
@@ -16,7 +17,7 @@ const EmojiIcon = () => (
 
 const CreateCommentOverlay: React.FC = () => {
   const app = useApp();
-  const { onCommentCreate, currentUser } = useAppProps();
+  const { onCommentCreate, currentUser, getMentionSuggestions } = useAppProps();
   const [placing, setPlacing] = useState(false);
   const [pos, setPos] = useState<{
     left: number;
@@ -26,6 +27,10 @@ const CreateCommentOverlay: React.FC = () => {
     elementId: string;
   } | null>(null);
   const [text, setText] = useState("");
+  const mention = useMention(text, (t) => {
+    setText(t);
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, getMentionSuggestions);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Listen for the "start placing a comment pin" signal
@@ -94,6 +99,8 @@ const CreateCommentOverlay: React.FC = () => {
       role="dialog"
       aria-label="Add comment"
     >
+      <MentionDropdown mention={mention} />
+
       <div className="create-comment-input">
         <input
           ref={inputRef}

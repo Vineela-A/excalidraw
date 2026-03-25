@@ -10,6 +10,14 @@ const getConfig = (outdir) => ({
   entryPoints: ["src/index.ts"],
   entryNames: "[name]",
   assetNames: "[dir]/[name]",
+  loader: {
+    ".woff2": "file",
+    ".woff": "file",
+    ".ttf": "file",
+    ".png": "file",
+    ".jpg": "file",
+    ".svg": "file",
+  },
   alias: {
     "@excalidraw/utils": path.resolve(__dirname, "../packages/utils/src"),
   },

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import { useMention, MentionDropdown } from "./MentionInput";
 import { createPortal } from "react-dom";
 import { useExcalidrawAppState, useAppProps } from "./App";
 import { sceneCoordsToViewportCoords } from "@excalidraw/common";
@@ -426,8 +427,10 @@ const ThreadPopover: React.FC<ThreadPopoverProps> = ({ pin, onClose }) => {
     onCommentEdit,
     onCommentReplyDelete,
     currentUser,
+    getMentionSuggestions,
   } = useAppProps();
   const [replyText, setReplyText] = useState("");
+  const mention = useMention(replyText, setReplyText, getMentionSuggestions);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const author = currentUser ?? { id: "anon", name: "You", avatarColor: COMMENT_ACCENT_COLOR };
@@ -536,58 +539,58 @@ const ThreadPopover: React.FC<ThreadPopoverProps> = ({ pin, onClose }) => {
         )}
       </div>
 
-      {/* Reply input */}
-      <form
-        onSubmit={handleReply}
-        style={{
-          display: "flex",
-          gap: 10,
-          alignItems: "center",
-          borderTop: "1px solid #F3F4F6",
-          paddingTop: 14,
-        }}
-      >
-        <input
-          value={replyText}
-          onChange={(e) => setReplyText(e.target.value)}
-          placeholder="Leave a reply. Use @ to mention."
-          style={{
-            flex: 1,
-            padding: "10px 14px",
-            borderRadius: 10,
-            border: "1px solid #E5E7EB",
-            background: "#FAFAFA",
-            fontFamily: COMMENT_FONT_FAMILY,
-            fontSize: COMMENT_FONT_SIZE_MD,
-            outline: "none",
-            color: "#111827",
-          }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); }
-          }}
-        />
-        <button
-          type="submit"
-          aria-label="Send reply"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: "50%",
-            border: "none",
-            background: COMMENT_ACCENT_COLOR,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexShrink: 0,
-          }}
+      {/* Reply input + @mention dropdown */}
+      <div style={{ position: "relative", borderTop: "1px solid #F3F4F6", paddingTop: 14 }}>
+        {/* @mention dropdown */}
+        <MentionDropdown mention={mention} />
+
+        <form
+          onSubmit={handleReply}
+          style={{ display: "flex", gap: 10, alignItems: "center" }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M22 2L11 13" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </button>
-      </form>
+          <input
+            value={replyText}
+            onChange={(e) => setReplyText(e.target.value)}
+            placeholder="Leave a reply. Use @ to mention."
+            style={{
+              flex: 1,
+              padding: "10px 14px",
+              borderRadius: 10,
+              border: "1px solid #E5E7EB",
+              background: "#FAFAFA",
+              fontFamily: COMMENT_FONT_FAMILY,
+              fontSize: COMMENT_FONT_SIZE_MD,
+              outline: "none",
+              color: "#111827",
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") { setReplyText(""); return; }
+              if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleReply(); }
+            }}
+          />
+          <button
+            type="submit"
+            aria-label="Send reply"
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: "50%",
+              border: "none",
+              background: COMMENT_ACCENT_COLOR,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+              <path d="M22 2L11 13" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+        </form>
+      </div>
     </div>
   );
 };

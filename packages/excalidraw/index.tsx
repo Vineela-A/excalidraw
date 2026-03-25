@@ -75,6 +75,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     onCommentEdit,
     votes,
     onVote,
+    getMentionSuggestions,
   } = props;
 
   const canvasActions = props.UIOptions?.canvasActions;
@@ -180,6 +181,7 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           onCommentEdit={onCommentEdit}
           votes={votes}
           onVote={onVote}
+          getMentionSuggestions={getMentionSuggestions}
         >
           {children}
         </App>

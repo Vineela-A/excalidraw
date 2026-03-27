@@ -90,7 +90,7 @@ const CreateCommentOverlay: React.FC = () => {
     cancel();
   };
 
-  if (!pos) return null;
+  if (!pos || !onCommentCreate) return null;
 
   return (
     <div

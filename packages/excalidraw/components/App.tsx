@@ -7772,6 +7772,7 @@ class App extends React.Component<AppProps, AppState> {
       ? event.timeStamp - this.lastPointerDownEvent.timeStamp
       : 0;
     if (
+      !this.state.viewModeEnabled &&
       clicklength < 300 &&
       this.state.activeTool.type === this.state.preferredSelectionTool.type
     ) {

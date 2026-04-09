@@ -1,10 +1,28 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      allow get, write: if true;
-      // never set this to true, otherwise anyone can delete anyone else's drawing.
-      allow list: if false;
+
+    match /users/{userId} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+
+      // Block client-side writes to subscription fields — only the webhook (Admin SDK) may set these
+      allow write: if request.auth != null
+        && request.auth.uid == userId
+        && !("isSubscribed" in request.resource.data)
+        && !("stripeCustomerId" in request.resource.data)
+        && !("stripeSubscriptionId" in request.resource.data);
+
+      match /voiceCommands/{cmdId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    match /boards/{boardId}/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    match /notifications/{userId}/items/{notifId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }

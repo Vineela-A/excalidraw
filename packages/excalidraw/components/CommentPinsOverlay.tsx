@@ -95,12 +95,13 @@ interface ContextMenuProps {
   x: number;
   y: number;
   isReply: boolean;
+  canAdminDelete: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onClose: () => void;
 }
 
-const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, isReply, onEdit, onDelete, onClose }) => {
+const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, isReply, canAdminDelete, onEdit, onDelete, onClose }) => {
   // Close on outside click — use "mouseup" so button onClick fires before close
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -137,7 +138,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, isReply, onEdit, onDele
       >
         ✏️  Edit
       </button>
-      {isReply && (
+      {(isReply || canAdminDelete) && (
         <button
           type="button"
           onClick={() => { onDelete(); onClose(); }}
@@ -172,12 +173,13 @@ function menuItemStyle(color: string): React.CSSProperties {
 interface CommentRowProps {
   comment: CommentReply;
   isFirst: boolean;
+  canAdminDelete: boolean;
   onReaction: (emoji: string) => void;
   onEdit: (text: string) => void;
   onDelete: () => void;
 }
 
-const CommentRow: React.FC<CommentRowProps> = ({ comment: c, isFirst, onReaction, onEdit, onDelete }) => {
+const CommentRow: React.FC<CommentRowProps> = ({ comment: c, isFirst, canAdminDelete, onReaction, onEdit, onDelete }) => {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(c.text);
@@ -357,28 +359,31 @@ const CommentRow: React.FC<CommentRowProps> = ({ comment: c, isFirst, onReaction
         {/* Reaction pills */}
         {hasReactions && !isEditing && (
           <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
-            {Object.entries(reactions).map(([emoji, count]) => (
-              <button
-                key={emoji}
-                type="button"
-                onClick={() => onReaction(emoji)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 5,
-                  padding: "4px 12px",
-                  borderRadius: 99,
-                  background: "#F0F9FF",
-                  border: "1.5px solid #BAE6FD",
-                  cursor: "pointer",
-                  fontFamily: COMMENT_FONT_FAMILY,
-                  lineHeight: 1,
-                }}
-              >
-                <span style={{ fontSize: 16 }}>{emoji}</span>
-                <span style={{ fontSize: 12, color: "#374151", fontWeight: 600 }}>{count}</span>
-              </button>
-            ))}
+            {Object.entries(reactions).map(([emoji, users]) => {
+              const userList = Array.isArray(users) ? users : [users];
+              return (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => onReaction(emoji)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "4px 12px",
+                    borderRadius: 99,
+                    background: "#F0F9FF",
+                    border: "1.5px solid #BAE6FD",
+                    cursor: "pointer",
+                    fontFamily: COMMENT_FONT_FAMILY,
+                    lineHeight: 1,
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>{emoji}</span>
+                  <span style={{ fontSize: 12, color: "#374151", fontWeight: 600 }}>{userList.length}</span>
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
@@ -403,6 +408,7 @@ const CommentRow: React.FC<CommentRowProps> = ({ comment: c, isFirst, onReaction
           x={ctxMenu.x}
           y={ctxMenu.y}
           isReply={!isFirst}
+          canAdminDelete={canAdminDelete}
           onEdit={() => setIsEditing(true)}
           onDelete={onDelete}
           onClose={() => setCtxMenu(null)}
@@ -422,17 +428,20 @@ interface ThreadPopoverProps {
 const ThreadPopover: React.FC<ThreadPopoverProps> = ({ pin, onClose }) => {
   const {
     onCommentDelete,
+    onCommentResolve,
     onCommentReply,
     onCommentReaction,
     onCommentEdit,
     onCommentReplyDelete,
     currentUser,
+    userRole,
     getMentionSuggestions,
   } = useAppProps();
   const [replyText, setReplyText] = useState("");
   const mention = useMention(replyText, setReplyText, getMentionSuggestions);
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const isAdmin = userRole === "owner" || userRole === "editor";
   const author = currentUser ?? { id: "anon", name: "You", avatarColor: COMMENT_ACCENT_COLOR };
 
   const handleReply = (e?: React.FormEvent) => {
@@ -444,6 +453,12 @@ const ThreadPopover: React.FC<ThreadPopoverProps> = ({ pin, onClose }) => {
 
   const handleDeleteThread = () => {
     onCommentDelete?.(pin.id);
+    setMenuOpen(false);
+    onClose();
+  };
+
+  const handleResolveThread = () => {
+    onCommentResolve?.(pin.id);
     setMenuOpen(false);
     onClose();
   };
@@ -461,6 +476,8 @@ const ThreadPopover: React.FC<ThreadPopoverProps> = ({ pin, onClose }) => {
         fontFamily: COMMENT_FONT_FAMILY,
       }}
       onClick={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       {/* ⋯ menu (delete entire thread) */}
       <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 14 }}>
@@ -498,6 +515,48 @@ const ThreadPopover: React.FC<ThreadPopoverProps> = ({ pin, onClose }) => {
               }}
               onClick={(e) => e.stopPropagation()}
             >
+              {!pin.isResolved && (
+                <button
+                  type="button"
+                  onClick={handleResolveThread}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "10px 12px",
+                    textAlign: "left",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    color: "#16a34a",
+                    fontFamily: COMMENT_FONT_FAMILY,
+                    fontSize: COMMENT_FONT_SIZE,
+                    borderRadius: 6,
+                  }}
+                >
+                  ✅  Resolve thread
+                </button>
+              )}
+              {pin.isResolved && (
+                <button
+                  type="button"
+                  onClick={handleResolveThread}
+                  style={{
+                    display: "block",
+                    width: "100%",
+                    padding: "10px 12px",
+                    textAlign: "left",
+                    border: "none",
+                    background: "transparent",
+                    cursor: "pointer",
+                    color: "#6b7280",
+                    fontFamily: COMMENT_FONT_FAMILY,
+                    fontSize: COMMENT_FONT_SIZE,
+                    borderRadius: 6,
+                  }}
+                >
+                  🔄  Reopen thread
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleDeleteThread}
@@ -531,9 +590,10 @@ const ThreadPopover: React.FC<ThreadPopoverProps> = ({ pin, onClose }) => {
               key={c.id}
               comment={c}
               isFirst={idx === 0}
+              canAdminDelete={isAdmin}
               onReaction={(emoji) => onCommentReaction?.(c.id, emoji, author.id)}
               onEdit={(text) => onCommentEdit?.(c.id, text)}
-              onDelete={() => onCommentReplyDelete?.(c.id)}
+              onDelete={() => idx === 0 ? onCommentDelete?.(pin.id) : onCommentReplyDelete?.(c.id)}
             />
           ))
         )}
@@ -647,31 +707,36 @@ const CommentPinsOverlay: React.FC = () => {
           >
             {/* Pin badge */}
             <div
-              title="View comment thread"
+              title={pin.isResolved ? "Resolved thread" : "View comment thread"}
               onClick={() => setOpenThreadFor(isOpen ? null : pin.id)}
               style={{
                 width: PIN_SIZE,
                 height: PIN_SIZE,
                 borderRadius: "50%",
-                background: isOpen ? COMMENT_ACCENT_COLOR : "#fff",
+                background: pin.isResolved ? "#f0fdf4" : isOpen ? COMMENT_ACCENT_COLOR : "#fff",
                 boxShadow: "0 2px 8px rgba(0,0,0,0.16)",
-                border: `2px solid ${isOpen ? COMMENT_ACCENT_COLOR : "#E5E7EB"}`,
+                border: `2px solid ${pin.isResolved ? "#86efac" : isOpen ? COMMENT_ACCENT_COLOR : "#E5E7EB"}`,
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 cursor: "pointer",
                 transition: "background 0.15s, border-color 0.15s",
+                opacity: pin.isResolved ? 0.6 : 1,
               }}
             >
-              <div
-                style={avatarStyle(
-                  COMMENT_REPLY_AVATAR_SIZE,
-                  COMMENT_REPLY_AVATAR_RADIUS,
-                  isOpen ? "rgba(255,255,255,0.25)" : (firstAuthor?.avatarColor ?? COMMENT_ACCENT_COLOR),
-                )}
-              >
-                {(firstAuthor?.name ?? "?").charAt(0).toUpperCase()}
-              </div>
+              {pin.isResolved ? (
+                <span style={{ fontSize: 16 }}>✓</span>
+              ) : (
+                <div
+                  style={avatarStyle(
+                    COMMENT_REPLY_AVATAR_SIZE,
+                    COMMENT_REPLY_AVATAR_RADIUS,
+                    isOpen ? "rgba(255,255,255,0.25)" : (firstAuthor?.avatarColor ?? COMMENT_ACCENT_COLOR),
+                  )}
+                >
+                  {(firstAuthor?.name ?? "?").charAt(0).toUpperCase()}
+                </div>
+              )}
             </div>
 
             {/* Thread popover */}

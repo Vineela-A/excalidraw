@@ -66,6 +66,7 @@ export const MentionDropdown: React.FC<{ mention: MentionState }> = ({
 
   return (
     <div
+      data-comment-thread="1"
       style={{
         position: "absolute",
         bottom: "calc(100% + 4px)",
@@ -83,8 +84,12 @@ export const MentionDropdown: React.FC<{ mention: MentionState }> = ({
         <button
           key={s.id}
           type="button"
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
           onMouseDown={(e) => {
-            e.preventDefault();
+            e.preventDefault(); // keeps focus on the comment input
+            e.stopPropagation();
             mention.insertMention(s.name);
           }}
           style={{

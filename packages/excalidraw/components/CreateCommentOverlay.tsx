@@ -98,6 +98,8 @@ const CreateCommentOverlay: React.FC = () => {
       style={{ left: `${pos.left}px`, top: `${pos.top}px` }}
       role="dialog"
       aria-label="Add comment"
+      onPointerDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.stopPropagation()}
     >
       <MentionDropdown mention={mention} />
 

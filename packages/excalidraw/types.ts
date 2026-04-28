@@ -572,6 +572,7 @@ export type CommentPin = {
   sceneX: number;
   sceneY: number;
   comments: CommentReply[];
+  isResolved?: boolean;
 };
 
 export type ElementReaction = {
@@ -694,6 +695,7 @@ export interface ExcalidrawProps {
     author: CommentAuthor;
   }) => void;
   onCommentDelete?: (pinId: string) => void;
+  onCommentResolve?: (pinId: string) => void;
   /** Delete a single reply (not the whole thread). */
   onCommentReplyDelete?: (replyId: string) => void;
   onCommentReply?: (
@@ -718,6 +720,8 @@ export interface ExcalidrawProps {
   onCommentEdit?: (commentId: string, text: string) => void;
   /** Current user info used for authoring comments/reactions */
   currentUser?: CommentAuthor;
+  /** Role of current user — used to show admin-only controls (delete any comment) */
+  userRole?: string;
   getMentionSuggestions?: (query: string) => Array<{ id: string; name: string }>;
   // ─── Votes ──────────────────────────────────────────────────────────────────
   votes?: Vote[];

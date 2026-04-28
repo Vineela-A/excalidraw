@@ -76,6 +76,8 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
     votes,
     onVote,
     getMentionSuggestions,
+    onCommentResolve,
+    userRole,
   } = props;
 
   const canvasActions = props.UIOptions?.canvasActions;
@@ -182,6 +184,8 @@ const ExcalidrawBase = (props: ExcalidrawProps) => {
           votes={votes}
           onVote={onVote}
           getMentionSuggestions={getMentionSuggestions}
+          onCommentResolve={onCommentResolve}
+          userRole={userRole}
         >
           {children}
         </App>

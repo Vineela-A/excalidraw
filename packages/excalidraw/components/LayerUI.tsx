@@ -60,6 +60,7 @@ import { ImageExportDialog } from "./ImageExportDialog";
 import { Island } from "./Island";
 import { JSONExportDialog } from "./JSONExportDialog";
 import { LaserPointerButton } from "./LaserPointerButton";
+import { Toast } from "./Toast";
 
 import "./LayerUI.scss";
 import "./Toolbar.scss";
@@ -556,13 +557,13 @@ const LayerUI = ({
       <tunnels.OverwriteConfirmDialogTunnel.Out />
       {renderImageExportDialog()}
       {renderJSONExportDialog()}
-      {appState.pasteDialog.shown && (
+      {appState.openDialog?.name === "charts" && (
         <PasteChartDialog
-          setAppState={setAppState}
-          appState={appState}
+          data={appState.openDialog.data}
+          rawText={appState.openDialog.rawText}
           onClose={() =>
             setAppState({
-              pasteDialog: { shown: false, data: null },
+              openDialog: null,
             })
           }
         />
@@ -605,18 +606,30 @@ const LayerUI = ({
               showExitZenModeBtn={showExitZenModeBtn}
               renderWelcomeScreen={renderWelcomeScreen}
             />
-            {appState.scrolledOutside && (
-              <button
-                type="button"
-                className="scroll-back-to-content"
-                onClick={() => {
-                  setAppState((appState) => ({
-                    ...calculateScrollCenter(elements, appState),
-                  }));
-                }}
-              >
-                {t("buttons.scrollBackToContent")}
-              </button>
+            {(appState.toast || appState.scrolledOutside) && (
+              <div className="floating-status-stack">
+                {appState.toast && (
+                  <Toast
+                    message={appState.toast.message}
+                    onClose={() => setAppState({ toast: null })}
+                    duration={appState.toast.duration}
+                    closable={appState.toast.closable}
+                  />
+                )}
+                {!appState.toast && appState.scrolledOutside && (
+                  <button
+                    type="button"
+                    className="scroll-back-to-content"
+                    onClick={() => {
+                      setAppState((appState) => ({
+                        ...calculateScrollCenter(elements, appState),
+                      }));
+                    }}
+                  >
+                    {t("buttons.scrollBackToContent")}
+                  </button>
+                )}
+              </div>
             )}
           </div>
           {renderSidebars()}
@@ -637,8 +650,7 @@ const LayerUI = ({
 };
 
 const stripIrrelevantAppStateProps = (appState: AppState): UIAppState => {
-  const { startBoundElement, cursorButton, scrollX, scrollY, ...ret } =
-    appState;
+  const { cursorButton, scrollX, scrollY, ...ret } = appState;
   return ret;
 };
 

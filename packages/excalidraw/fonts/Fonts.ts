@@ -37,9 +37,14 @@ import { EmojiFontFaces } from "./Emoji";
 import { ExcalidrawFontFace } from "./ExcalidrawFontFace";
 import { ExcalifontFontFaces } from "./Excalifont";
 import { HelveticaFontFaces } from "./Helvetica";
+import { InterFontFaces } from "./Inter";
+import { LatoFontFaces } from "./Lato";
 import { LiberationFontFaces } from "./Liberation";
 import { LilitaFontFaces } from "./Lilita";
 import { NunitoFontFaces } from "./Nunito";
+import { OpenSansFontFaces } from "./OpenSans";
+import { PoppinsFontFaces } from "./Poppins";
+import { RobotoFontFaces } from "./Roboto";
 import { VirgilFontFaces } from "./Virgil";
 import { XiaolaiFontFaces } from "./Xiaolai";
 
@@ -387,6 +392,13 @@ export class Fonts {
     init("Excalifont", ...ExcalifontFontFaces);
     // keeping for backwards compatibility reasons, uses system font (Helvetica on MacOS, Arial on Win)
     init("Helvetica", ...HelveticaFontFaces);
+    // ── Verlo additions ─────────────────────────────────────────────────────
+    init("Inter", ...InterFontFaces);
+    init("Roboto", ...RobotoFontFaces);
+    init("Open Sans", ...OpenSansFontFaces);
+    init("Lato", ...LatoFontFaces);
+    init("Poppins", ...PoppinsFontFaces);
+    // ────────────────────────────────────────────────────────────────────────
     // used for server-side pdf & png export instead of helvetica (technically does not need metrics, but kept in for consistency)
     init("Liberation Sans", ...LiberationFontFaces);
     init("Lilita One", ...LilitaFontFaces);

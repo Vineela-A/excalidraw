@@ -111,6 +111,47 @@ export const FONT_METADATA: Record<number, FontMetadata> = {
     },
     private: true,
   },
+  // ── Verlo additions ─────────────────────────────────────────────────────────
+  [FONT_FAMILY.Inter]: {
+    metrics: {
+      unitsPerEm: 2048,
+      ascender: 1984,
+      descender: -494,
+      lineHeight: 1.2,
+    },
+  },
+  [FONT_FAMILY.Roboto]: {
+    metrics: {
+      unitsPerEm: 2048,
+      ascender: 1900,
+      descender: -500,
+      lineHeight: 1.2,
+    },
+  },
+  [FONT_FAMILY["Open Sans"]]: {
+    metrics: {
+      unitsPerEm: 2048,
+      ascender: 2189,
+      descender: -600,
+      lineHeight: 1.2,
+    },
+  },
+  [FONT_FAMILY.Lato]: {
+    metrics: {
+      unitsPerEm: 2048,
+      ascender: 1843,
+      descender: -455,
+      lineHeight: 1.2,
+    },
+  },
+  [FONT_FAMILY.Poppins]: {
+    metrics: {
+      unitsPerEm: 1000,
+      ascender: 1050,
+      descender: -350,
+      lineHeight: 1.25,
+    },
+  },
   [FONT_FAMILY_FALLBACKS.Xiaolai]: {
     metrics: {
       unitsPerEm: 1000,

@@ -138,6 +138,12 @@ export const FONT_FAMILY = {
   "Comic Shanns": 8,
   "Liberation Sans": 9,
   Assistant: 10,
+  // ── Verlo additions ───────────────────────────────────────────────────────
+  Inter: 11,
+  Roboto: 12,
+  "Open Sans": 13,
+  Lato: 14,
+  Poppins: 15,
 };
 
 // Segoe UI Emoji fails to properly fallback for some glyphs: ∞, ∫, ≠

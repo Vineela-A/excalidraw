@@ -859,6 +859,7 @@ class App extends React.Component<AppProps, AppState> {
     super(props);
     const defaultAppState = getDefaultAppState();
     const {
+      excalidrawAPI,
       viewModeEnabled = false,
       zenModeEnabled = false,
       gridModeEnabled = false,
@@ -2534,7 +2535,20 @@ class App extends React.Component<AppProps, AppState> {
                             onPointerDown={this.handleCanvasPointerDown}
                             onDoubleClick={this.handleCanvasDoubleClick}
                           />
-<<<<<<< HEAD
+                        {this.state.userToFollow && (
+                          <FollowMode
+                            width={this.state.width}
+                            height={this.state.height}
+                            userToFollow={this.state.userToFollow}
+                            onDisconnect={this.maybeUnfollowRemoteUser}
+                          />
+                        )}
+                        {this.renderFrameNames()}
+                        {this.state.activeLockedId && (
+                          <UnlockPopup
+                            app={this}
+                            activeLockedId={this.state.activeLockedId}
+                          />
                         )}
                         {showShapeSwitchPanel && (
                           <ConvertElementTypePopup app={this} />
@@ -2542,35 +2556,8 @@ class App extends React.Component<AppProps, AppState> {
                         {/* Sticky-note tooltip near pointer when a single sticky note is selected */}
                         {selectedElements.length === 1 &&
                           isStickynoteElement(firstSelectedElement) &&
-                          this.lastPointerMoveCoords && (
-                            (() => {
-                              const { x: sceneX, y: sceneY } = this.lastPointerMoveCoords!;
-                              const { x: viewportX, y: viewportY } = sceneCoordsToViewportCoords(
-                                { sceneX, sceneY },
-                                this.state,
-                              );
-                              const left = viewportX - this.state.offsetLeft + 12;
-                              const top = viewportY - this.state.offsetTop + 12;
-                              return (
-                                <div
-                                  style={{
-                                    position: "absolute",
-                                    left: `${left}px`,
-                                    top: `${top}px`,
-                                    background: "rgba(0,0,0,0.85)",
-                                    color: "#fff",
-                                    padding: "6px 8px",
-                                    borderRadius: 6,
-                                    fontSize: 12,
-                                    pointerEvents: "none",
-                                    zIndex: 9999,
-                                  }}
-                                >
-                                  {t(("labels.doubleClickToEdit" as any)) ?? "Double-click to edit ✏️"}
-                                </div>
-                              );
-                            })()
-                          )}
+                          this.lastPointerMoveCoords &&
+                          this.renderStickyNoteTooltip()}
                       </ExcalidrawActionManagerContext.Provider>
                       <ReactionsOverlay />
                       <StickyAuthorOverlay />
@@ -2585,36 +2572,37 @@ class App extends React.Component<AppProps, AppState> {
             </ExcalidrawContainerContext.Provider>
           </AppPropsContext.Provider>
         </AppContext.Provider>
-=======
-                          {this.state.userToFollow && (
-                            <FollowMode
-                              width={this.state.width}
-                              height={this.state.height}
-                              userToFollow={this.state.userToFollow}
-                              onDisconnect={this.maybeUnfollowRemoteUser}
-                            />
-                          )}
-                          {this.renderFrameNames()}
-                          {this.state.activeLockedId && (
-                            <UnlockPopup
-                              app={this}
-                              activeLockedId={this.state.activeLockedId}
-                            />
-                          )}
-                          {showShapeSwitchPanel && (
-                            <ConvertElementTypePopup app={this} />
-                          )}
-                        </ExcalidrawActionManagerContext.Provider>
-                        {this.renderEmbeddables()}
-                      </ExcalidrawElementsContext.Provider>
-                    </ExcalidrawAppStateContext.Provider>
-                  </ExcalidrawSetAppStateContext.Provider>
-                </EditorInterfaceContext.Provider>
-              </ExcalidrawContainerContext.Provider>
-            </AppPropsContext.Provider>
-          </AppContext.Provider>
         </ExcalidrawAPIContext.Provider>
->>>>>>> master
+      </div>
+    );
+  }
+
+  /** Render a "double-click to edit" tooltip anchored near the pointer for sticky notes. */
+  private renderStickyNoteTooltip() {
+    if (!this.lastPointerMoveCoords) return null;
+    const { x: sceneX, y: sceneY } = this.lastPointerMoveCoords;
+    const { x: viewportX, y: viewportY } = sceneCoordsToViewportCoords(
+      { sceneX, sceneY },
+      this.state,
+    );
+    const left = viewportX - this.state.offsetLeft + 12;
+    const top = viewportY - this.state.offsetTop + 12;
+    return (
+      <div
+        style={{
+          position: "absolute",
+          left: `${left}px`,
+          top: `${top}px`,
+          background: "rgba(0,0,0,0.85)",
+          color: "#fff",
+          padding: "6px 8px",
+          borderRadius: 6,
+          fontSize: 12,
+          pointerEvents: "none",
+          zIndex: 9999,
+        }}
+      >
+        {t(("labels.doubleClickToEdit" as any)) ?? "Double-click to edit ✏️"}
       </div>
     );
   }
@@ -6441,7 +6429,7 @@ class App extends React.Component<AppProps, AppState> {
         shouldBindToContainer = true;
       }
     }
-const existingTextElement =
+let existingTextElement: NonDeleted<ExcalidrawTextElement> | null =
       this.getSelectedTextElement(container) ||
       this.getTextElementAtPosition(sceneX, sceneY);
     const selectedElements = this.scene.getSelectedElements(this.state);

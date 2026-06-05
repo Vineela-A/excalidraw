@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import type { ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types";
 import { newStickynoteElement } from "@excalidraw/element";
 
-// 18 Miro-inspired sticky note colors (3 rows × 6 cols)
+// 18 sticky note colors (3 rows × 6 cols)
 const STICKY_COLORS = [
   // Row 1 — vivid warm
   { label: "Yellow",       value: "#FFDD57" },

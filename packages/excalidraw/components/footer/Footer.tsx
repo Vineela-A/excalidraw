@@ -62,7 +62,7 @@ const Footer = ({
         <div style={{ position: "relative" }}>
           {renderWelcomeScreen && <WelcomeScreenHelpHintTunnel.Out />}
           <HelpButton
-            onClick={() => actionManager.executeAction(actionShortcuts)}
+            onClick={() => window.dispatchEvent(new CustomEvent("verlo:openShortcuts"))}
           />
         </div>
       </div>

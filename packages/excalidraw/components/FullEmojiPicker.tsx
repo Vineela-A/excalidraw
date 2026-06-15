@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import EmojiPickerLib from "emoji-picker-react";
 import type { EmojiClickData } from "emoji-picker-react";
 
@@ -41,7 +42,7 @@ const STICKER_CATEGORIES: { label: string; items: string[] }[] = [
 ];
 
 interface FullEmojiPickerProps {
-  anchorEl: HTMLElement;
+  anchorEl?: HTMLElement | null;
   onSelect: (emoji: string) => void;
   onClose: () => void;
 }
@@ -58,20 +59,27 @@ const FullEmojiPicker: React.FC<FullEmojiPickerProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [tab, setTab] = useState<Tab>("emojis");
 
-  // Position: open above or below the anchor
-  const rect = anchorEl.getBoundingClientRect();
+  // Position: anchor to button if visible, otherwise center on screen
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  let left = rect.left + rect.width / 2 - PICKER_WIDTH / 2;
-  if (left < 8) left = 8;
-  if (left + PICKER_WIDTH > vw - 8) left = vw - 8 - PICKER_WIDTH;
-
-  // Prefer opening above if not enough space below
-  const spaceBelow = vh - rect.bottom - 8;
-  const spaceAbove = rect.top - 8;
-  const openAbove = spaceBelow < 430 && spaceAbove > spaceBelow;
-  const top = openAbove ? undefined : rect.bottom + 6;
-  const bottom = openAbove ? vh - rect.top + 6 : undefined;
+  let left: number;
+  let top: number | undefined;
+  let bottom: number | undefined;
+  const rect = anchorEl?.getBoundingClientRect();
+  const anchorVisible = rect && (rect.width > 0 || rect.height > 0);
+  if (!anchorVisible) {
+    left = vw / 2 - PICKER_WIDTH / 2;
+    top = vh / 2 - 215;
+  } else {
+    left = rect!.left + rect!.width / 2 - PICKER_WIDTH / 2;
+    if (left < 8) left = 8;
+    if (left + PICKER_WIDTH > vw - 8) left = vw - 8 - PICKER_WIDTH;
+    const spaceBelow = vh - rect!.bottom - 8;
+    const spaceAbove = rect!.top - 8;
+    const openAbove = spaceBelow < 430 && spaceAbove > spaceBelow;
+    top = openAbove ? undefined : rect!.bottom + 6;
+    bottom = openAbove ? vh - rect!.top + 6 : undefined;
+  }
 
   // Close on outside pointer-down
   useEffect(() => {
@@ -97,7 +105,7 @@ const FullEmojiPicker: React.FC<FullEmojiPickerProps> = ({
     onClose();
   };
 
-  return (
+  return createPortal(
     <div
       ref={containerRef}
       style={{
@@ -232,7 +240,8 @@ const FullEmojiPicker: React.FC<FullEmojiPickerProps> = ({
           ))}
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 };
 

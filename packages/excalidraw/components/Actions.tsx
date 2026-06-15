@@ -1,5 +1,5 @@
 import clsx from "clsx";
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import { Popover } from "radix-ui";
 
 import {
@@ -1056,6 +1056,17 @@ export const ShapesSwitcher = ({
   const [isExtraToolsMenuOpen, setIsExtraToolsMenuOpen] = useState(false);
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const emojiStickerBtnRef = useRef<HTMLElement>(null);
+  const emojiAnchorElRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const detail = (e as CustomEvent).detail as { anchorEl?: HTMLElement } | undefined;
+      emojiAnchorElRef.current = detail?.anchorEl ?? null;
+      setEmojiPickerOpen((v) => !v);
+    };
+    window.addEventListener("excalidraw:openEmojiPicker", handler);
+    return () => window.removeEventListener("excalidraw:openEmojiPicker", handler);
+  }, []);
   const stylesPanelMode = useStylesPanelMode();
   const isFullStylesPanel = stylesPanelMode === "full";
   const isCompactStylesPanel = stylesPanelMode === "compact";
@@ -1063,11 +1074,26 @@ export const ShapesSwitcher = ({
   const handleEmojiStickerSelect = useCallback(
     (emoji: string) => {
       setEmojiPickerOpen(false);
+      const EMOJI_SIZE = 40;
+      const selectedIds = Object.keys(app.state.selectedElementIds ?? {}).filter(
+        (id) => (app.state.selectedElementIds as Record<string, boolean>)[id],
+      );
+      let x = 0;
+      let y = 0;
+      if (selectedIds.length > 0) {
+        const sel = app.scene.getElementsIncludingDeleted().find(
+          (e: { id: string }) => e.id === selectedIds[0],
+        ) as { x: number; y: number; width: number; height: number } | undefined;
+        if (sel) {
+          x = sel.x + sel.width + 8;
+          y = sel.y + sel.height - EMOJI_SIZE;
+        }
+      }
       const element = newTextElement({
-        x: 0,
-        y: 0,
+        x,
+        y,
         text: emoji,
-        fontSize: 40,
+        fontSize: EMOJI_SIZE,
         opacity: 100,
         customData: { isEmojiSticker: true },
       });
@@ -1224,9 +1250,9 @@ export const ShapesSwitcher = ({
         title="Emoji sticker"
         onClick={() => setEmojiPickerOpen((v) => !v)}
       />
-      {emojiPickerOpen && emojiStickerBtnRef.current && (
+      {emojiPickerOpen && (
         <FullEmojiPicker
-          anchorEl={emojiStickerBtnRef.current}
+          anchorEl={emojiAnchorElRef.current ?? emojiStickerBtnRef.current ?? undefined}
           onSelect={handleEmojiStickerSelect}
           onClose={() => setEmojiPickerOpen(false)}
         />

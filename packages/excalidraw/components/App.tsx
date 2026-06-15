@@ -428,9 +428,9 @@ import { textWysiwyg } from "../wysiwyg/textWysiwyg";
 import ReactionsOverlay from "./ReactionsOverlay";
 import VoteOverlay from "./VoteOverlay";
 import StickyAuthorOverlay from "./StickyAuthorOverlay";
+import EmojiStickerOverlay from "./EmojiStickerOverlay";
 import CommentPinsOverlay from "./CommentPinsOverlay";
 import CreateCommentOverlay from "./CreateCommentOverlay";
-import EmojiStickerOverlay from "./EmojiStickerOverlay";
 import { isOverScrollBars } from "../scene/scrollbars";
 
 import { isMaybeMermaidDefinition } from "../mermaid";

@@ -55,6 +55,8 @@ const DIVIDER: React.CSSProperties = {
   alignSelf: "center",
 };
 
+const EMOJI_BODY_CLASS = "excalidraw-emoji-sticker-selected";
+
 const EmojiStickerOverlay: React.FC = () => {
   const elements = useExcalidrawElements();
   const appState = useExcalidrawAppState();
@@ -67,10 +69,20 @@ const EmojiStickerOverlay: React.FC = () => {
   const selectedIds = Object.keys(appState.selectedElementIds ?? {}).filter(
     (id) => (appState.selectedElementIds as any)[id],
   );
-  if (selectedIds.length !== 1) return null;
 
-  const el = elements.find((e) => e.id === selectedIds[0]);
-  if (!el || !isEmojiSticker(el)) return null;
+  const el = selectedIds.length === 1 ? elements.find((e) => e.id === selectedIds[0]) : undefined;
+  const isEmoji = !!el && isEmojiSticker(el);
+
+  React.useEffect(() => {
+    if (isEmoji) {
+      document.body.classList.add(EMOJI_BODY_CLASS);
+    } else {
+      document.body.classList.remove(EMOJI_BODY_CLASS);
+    }
+    return () => document.body.classList.remove(EMOJI_BODY_CLASS);
+  }, [isEmoji]);
+
+  if (!isEmoji || !el) return null;
 
   const elAny = el as any;
   const { x: vpLeft, y: vpTop } = sceneCoordsToViewportCoords(

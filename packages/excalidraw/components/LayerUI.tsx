@@ -285,24 +285,13 @@ const LayerUI = ({
   };
 
   const renderFixedSideContainer = () => {
-    const selectedIds = Object.keys(appState.selectedElementIds ?? {}).filter(
-      (id) => (appState.selectedElementIds as Record<string, boolean>)[id],
+    const selectedEls = elements.filter(
+      (e) => (appState.selectedElementIds as Record<string, boolean>)[e.id],
     );
     const isSingleEmojiSticker =
-      selectedIds.length === 1 &&
-      (() => {
-        const el = elements.find((e) => e.id === selectedIds[0]) as
-          | { type: string; customData?: { isEmojiSticker?: boolean }; fontSize?: number; text?: string }
-          | undefined;
-        if (!el || el.type !== "text") return false;
-        if (el.customData?.isEmojiSticker) return true;
-        if ((el.fontSize ?? 0) < 30) return false;
-        try {
-          return [...new Intl.Segmenter().segment(el.text ?? "")].length === 1;
-        } catch {
-          return false;
-        }
-      })();
+      selectedEls.length === 1 &&
+      selectedEls[0].type === "text" &&
+      !!(selectedEls[0] as unknown as { customData?: { isEmojiSticker?: boolean } }).customData?.isEmojiSticker;
     const shouldRenderSelectedShapeActions =
       !isSingleEmojiSticker &&
       showSelectedShapeActions(appState, elements);

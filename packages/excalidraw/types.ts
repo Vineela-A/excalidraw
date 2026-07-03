@@ -586,6 +586,7 @@ export type CommentPin = {
   sceneY: number;
   comments: CommentReply[];
   isResolved?: boolean;
+  isPinned?: boolean;
 };
 
 export type ElementReaction = {

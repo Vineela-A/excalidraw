@@ -69,6 +69,6 @@
   ,
   "devDependencies": {
     "rimraf": "^4.0.0",
-    "@excalidraw/fractional-indexing": "3.3.0"
+    "@excalidraw/fractional-indexing": "workspace:*"
   }
 }

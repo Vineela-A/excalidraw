@@ -673,8 +673,9 @@ const drawElementOnCanvas = (
         const availableWidth = sticky.width - PAD_X * 2;
         const availableHeight = sticky.height - PAD_Y * 2;
 
+        const stickyExt = sticky as unknown as { fontStyle?: string; fontWeight?: string };
         let finalFontSize = sticky.fontSize;
-        let fontString = getFontString({ fontSize: finalFontSize, fontFamily: sticky.fontFamily });
+        let fontString = getFontString({ fontSize: finalFontSize, fontFamily: sticky.fontFamily, fontStyle: stickyExt.fontStyle, fontWeight: stickyExt.fontWeight });
         let wrappedText = wrapText(sticky.text, fontString, availableWidth);
         let lines = wrappedText.split("\n");
         let lineHeightPx = getLineHeightInPx(finalFontSize, sticky.lineHeight);
@@ -682,7 +683,7 @@ const drawElementOnCanvas = (
 
         while (totalHeight > availableHeight && finalFontSize > 10) {
           finalFontSize = Math.max(10, finalFontSize - 1);
-          fontString = getFontString({ fontSize: finalFontSize, fontFamily: sticky.fontFamily });
+          fontString = getFontString({ fontSize: finalFontSize, fontFamily: sticky.fontFamily, fontStyle: stickyExt.fontStyle, fontWeight: stickyExt.fontWeight });
           wrappedText = wrapText(sticky.text, fontString, availableWidth);
           lines = wrappedText.split("\n");
           lineHeightPx = getLineHeightInPx(finalFontSize, sticky.lineHeight);
@@ -714,8 +715,28 @@ const drawElementOnCanvas = (
 
         const startY = PAD_Y + verticalOffset;
 
+        const stickyUnderline = (sticky as unknown as { textDecoration?: string }).textDecoration === "underline";
+        const stickyTextColor = renderConfig.theme === THEME.DARK ? applyDarkModeFilter(sticky.strokeColor) : sticky.strokeColor;
         for (let index = 0; index < lines.length; index++) {
-          context.fillText(lines[index], xPos, index * lineHeightPx + startY);
+          const y = index * lineHeightPx + startY;
+          context.fillText(lines[index], xPos, y);
+          if (stickyUnderline && lines[index].length > 0) {
+            const measured = context.measureText(lines[index]);
+            const lw = measured.width;
+            const uy = y + finalFontSize * 0.12;
+            let ux: number;
+            if (sticky.textAlign === "center") ux = xPos - lw / 2;
+            else if (sticky.textAlign === "right") ux = xPos - lw;
+            else ux = xPos;
+            context.save();
+            context.strokeStyle = stickyTextColor;
+            context.lineWidth = Math.max(1, finalFontSize * 0.06);
+            context.beginPath();
+            context.moveTo(ux, uy);
+            context.lineTo(ux + lw, uy);
+            context.stroke();
+            context.restore();
+          }
         }
 
         context.restore();
@@ -737,10 +758,10 @@ const drawElementOnCanvas = (
         context.canvas.setAttribute("dir", rtl ? "rtl" : "ltr");
         context.save();
         context.font = getFontString(element);
-        context.fillStyle =
-          renderConfig.theme === THEME.DARK
-            ? applyDarkModeFilter(element.strokeColor)
-            : element.strokeColor;
+        const textColor = renderConfig.theme === THEME.DARK
+          ? applyDarkModeFilter(element.strokeColor)
+          : element.strokeColor;
+        context.fillStyle = textColor;
         context.textAlign = element.textAlign as CanvasTextAlign;
 
         // Canvas does not support multiline text by default
@@ -764,12 +785,33 @@ const drawElementOnCanvas = (
           lineHeightPx,
         );
 
+        const underline = (element as { textDecoration?: string }).textDecoration === "underline";
+
         for (let index = 0; index < lines.length; index++) {
-          context.fillText(
-            lines[index],
-            horizontalOffset,
-            index * lineHeightPx + verticalOffset,
-          );
+          const y = index * lineHeightPx + verticalOffset;
+          context.fillText(lines[index], horizontalOffset, y);
+
+          if (underline && lines[index].length > 0) {
+            const measured = context.measureText(lines[index]);
+            const lineW = measured.width;
+            const underlineY = y + element.fontSize * 0.12;
+            let underlineX: number;
+            if (element.textAlign === "center") {
+              underlineX = horizontalOffset - lineW / 2;
+            } else if (element.textAlign === "right") {
+              underlineX = horizontalOffset - lineW;
+            } else {
+              underlineX = horizontalOffset;
+            }
+            context.save();
+            context.strokeStyle = textColor;
+            context.lineWidth = Math.max(1, element.fontSize * 0.06);
+            context.beginPath();
+            context.moveTo(underlineX, underlineY);
+            context.lineTo(underlineX + lineW, underlineY);
+            context.stroke();
+            context.restore();
+          }
         }
         context.restore();
         if (shouldTemporarilyAttach) {

@@ -900,43 +900,10 @@ class App extends React.Component<AppProps, AppState> {
     this.history = new History(this.store);
 
     if (excalidrawAPI) {
-      const api: ExcalidrawImperativeAPI = {
-        updateScene: this.updateScene,
-        applyDeltas: this.applyDeltas,
-        mutateElement: this.mutateElement,
-        updateLibrary: this.library.updateLibrary,
-        addFiles: this.addFiles,
-        resetScene: this.resetScene,
-        getSceneElementsIncludingDeleted: this.getSceneElementsIncludingDeleted,
-        getSceneElementsMapIncludingDeleted:
-          this.getSceneElementsMapIncludingDeleted,
-        history: {
-          clear: this.resetHistory,
-        },
-        scrollToContent: this.scrollToContent,
-        getSceneElements: this.getSceneElements,
-        getAppState: () => this.state,
-        getFiles: () => this.files,
-        getName: this.getName,
-        registerAction: (action: Action) => {
-          this.actionManager.registerAction(action);
-        },
-        refresh: this.refresh,
-        setToast: this.setToast,
-        id: this.id,
-        setActiveTool: this.setActiveTool,
-        setCursor: this.setCursor,
-        resetCursor: this.resetCursor,
-        getEditorInterface: () => this.editorInterface,
-        updateFrameRendering: this.updateFrameRendering,
-        toggleSidebar: this.toggleSidebar,
-        onChange: (cb) => this.onChangeEmitter.on(cb),
-        onIncrement: (cb) => this.store.onStoreIncrementEmitter.on(cb),
-        onPointerDown: (cb) => this.onPointerDownEmitter.on(cb),
-        onPointerUp: (cb) => this.onPointerUpEmitter.on(cb),
-        onScrollChange: (cb) => this.onScrollChangeEmitter.on(cb),
-        onUserFollow: (cb) => this.onUserFollowEmitter.on(cb),
-      } as const;
+      // Reuse the same construction as the primary API (avoids drifting out
+      // of sync with ExcalidrawImperativeAPI's shape, e.g. missing
+      // isDestroyed/onStateChange/onEvent).
+      const api: ExcalidrawImperativeAPI = this.createExcalidrawAPI();
       if (typeof excalidrawAPI === "function") {
         excalidrawAPI(api);
         // expose the internal API for local dev debugging
@@ -6135,6 +6102,7 @@ class App extends React.Component<AppProps, AppState> {
 
     if (
       activeTextElement &&
+      activeTextElement.type === "text" &&
       !activeTextElement.isDeleted &&
       !activeTextElement.autoResize &&
       isPointHittingTextAutoResizeHandle(

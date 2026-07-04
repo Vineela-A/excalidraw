@@ -33,6 +33,7 @@ import type {
   ExcalidrawNonSelectionElement,
   BindMode,
   ExcalidrawTextElement,
+  ExcalidrawStickynoteElement,
 } from "@excalidraw/element/types";
 
 import type {
@@ -336,7 +337,7 @@ export interface AppState {
   /**
    * set when a new text is created or when an existing text is being edited
    */
-  editingTextElement: ExcalidrawTextElement | null;
+  editingTextElement: ExcalidrawTextElement | ExcalidrawStickynoteElement | null;
   activeTool: {
     /**
      * indicates a previous tool we should revert back to if we deselect the
@@ -629,6 +630,8 @@ export interface ExcalidrawProps {
    * NOTE editor is not yet mounted, and state is not yet initialized
    */
   onExcalidrawAPI?: (api: ExcalidrawImperativeAPI | null) => void;
+  /** Alternate callback name for onExcalidrawAPI, used internally by App.tsx. */
+  excalidrawAPI?: (api: ExcalidrawImperativeAPI) => void;
   /**
    * Invoked once the editor root is mounted.
    */

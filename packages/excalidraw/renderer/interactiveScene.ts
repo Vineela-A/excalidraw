@@ -1631,7 +1631,11 @@ const _renderInteractiveScene = ({
 
   const activeTextElement = getActiveTextElement(selectedElements, appState);
 
-  if (activeTextElement && !activeTextElement.autoResize) {
+  if (
+    activeTextElement &&
+    activeTextElement.type === "text" &&
+    !activeTextElement.autoResize
+  ) {
     renderResetAutoResizeHandle(
       activeTextElement,
       context,

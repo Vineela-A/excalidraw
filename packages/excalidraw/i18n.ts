@@ -18,61 +18,15 @@ export type TranslationKeys = NestedKeyOf<typeof fallbackLangData>;
 
 export const defaultLang = { code: "en", label: "English" };
 
-export const languages: Language[] = [
-  defaultLang,
-  ...[
-    { code: "ar-SA", label: "العربية", rtl: true },
-    { code: "bg-BG", label: "Български" },
-    { code: "ca-ES", label: "Català" },
-    { code: "cs-CZ", label: "Česky" },
-    { code: "de-DE", label: "Deutsch" },
-    { code: "el-GR", label: "Ελληνικά" },
-    { code: "es-ES", label: "Español" },
-    { code: "eu-ES", label: "Euskara" },
-    { code: "fa-IR", label: "فارسی", rtl: true },
-    { code: "fi-FI", label: "Suomi" },
-    { code: "fr-FR", label: "Français" },
-    { code: "gl-ES", label: "Galego" },
-    { code: "he-IL", label: "עברית", rtl: true },
-    { code: "hi-IN", label: "हिन्दी" },
-    { code: "hu-HU", label: "Magyar" },
-    { code: "id-ID", label: "Bahasa Indonesia" },
-    { code: "it-IT", label: "Italiano" },
-    { code: "ja-JP", label: "日本語" },
-    { code: "kab-KAB", label: "Taqbaylit" },
-    { code: "kk-KZ", label: "Қазақ тілі" },
-    { code: "ko-KR", label: "한국어" },
-    { code: "ku-TR", label: "Kurdî" },
-    { code: "lt-LT", label: "Lietuvių" },
-    { code: "lv-LV", label: "Latviešu" },
-    { code: "my-MM", label: "Burmese" },
-    { code: "nb-NO", label: "Norsk bokmål" },
-    { code: "nl-NL", label: "Nederlands" },
-    { code: "nn-NO", label: "Norsk nynorsk" },
-    { code: "oc-FR", label: "Occitan" },
-    { code: "pa-IN", label: "ਪੰਜਾਬੀ" },
-    { code: "pl-PL", label: "Polski" },
-    { code: "pt-BR", label: "Português Brasileiro" },
-    { code: "pt-PT", label: "Português" },
-    { code: "ro-RO", label: "Română" },
-    { code: "ru-RU", label: "Русский" },
-    { code: "sk-SK", label: "Slovenčina" },
-    { code: "sv-SE", label: "Svenska" },
-    { code: "sl-SI", label: "Slovenščina" },
-    { code: "tr-TR", label: "Türkçe" },
-    { code: "uk-UA", label: "Українська" },
-    { code: "zh-CN", label: "简体中文" },
-    { code: "zh-TW", label: "繁體中文" },
-    { code: "vi-VN", label: "Tiếng Việt" },
-    { code: "mr-IN", label: "मराठी" },
-  ]
-    .filter(
-      (lang) =>
-        (percentages as Record<string, number>)[lang.code] >=
-        COMPLETION_THRESHOLD,
-    )
-    .sort((left, right) => (left.label > right.label ? 1 : -1)),
-];
+// Verlo only ships the English canvas UI translation (apps/web never calls
+// setLanguage or exposes a langCode prop) — the other ~49 upstream locale
+// JSON files were removed from ./locales to keep this package's bundle
+// under Cloudflare Workers' 25MB per-function limit (esbuild/webpack bundle
+// every file matched by the templated `import(\`./locales/${code}.json\`)`
+// below regardless of which is actually used, since edge runtimes can't
+// lazy-fetch extra chunks the way a browser can). Restore entries here only
+// alongside restoring their matching locales/<code>.json file.
+export const languages: Language[] = [defaultLang];
 
 const TEST_LANG_CODE = "__test__";
 if (isDevEnv()) {

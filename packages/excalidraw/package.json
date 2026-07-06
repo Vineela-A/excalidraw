@@ -70,7 +70,7 @@
   "bugs": "https://github.com/excalidraw/excalidraw/issues",
   "homepage": "https://github.com/excalidraw/excalidraw/tree/master/packages/excalidraw",
   "scripts": {
-    "postinstall": "npm run build",
+    "postinstall": "yarn --cwd ../../ build:packages",
     "build": "yarn build:esm",
     "gen:types": "rimraf types && (tsc || echo 'gen:types: pre-existing fork type errors — .d.ts still emitted (emitDeclarationOnly), not failing the install/build')",
     "build:esm": "rimraf dist && node ../../scripts/buildPackage.js && yarn gen:types"

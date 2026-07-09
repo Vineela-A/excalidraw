@@ -508,7 +508,7 @@ import type {
   Offsets,
 } from "../types";
 import type { RoughCanvas } from "roughjs/bin/canvas";
-import type { Action, ActionResult } from "../actions/types";
+import type { Action, ActionName, ActionResult } from "../actions/types";
 
 const AppContext = React.createContext<AppClassProperties>(null!);
 const AppPropsContext = React.createContext<AppProps>(null!);
@@ -828,6 +828,12 @@ class App extends React.Component<AppProps, AppState> {
       getName: this.getName,
       registerAction: (action: Action) => {
         this.actionManager.registerAction(action);
+      },
+      executeAction: (name: ActionName, value: any = null) => {
+        const action = this.actionManager.actions[name];
+        if (action) {
+          this.actionManager.executeAction(action, "api", value);
+        }
       },
       refresh: this.refresh,
       setToast: this.setToast,

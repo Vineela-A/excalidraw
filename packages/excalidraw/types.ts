@@ -50,7 +50,7 @@ import type {
 } from "@excalidraw/element";
 import type { GlobalPoint } from "@excalidraw/math";
 
-import type { Action } from "./actions/types";
+import type { Action, ActionName } from "./actions/types";
 import type { Spreadsheet } from "./charts";
 import type { ClipboardData } from "./clipboard";
 import type App from "./components/App";
@@ -1051,6 +1051,12 @@ export interface ExcalidrawImperativeAPI {
   getName: InstanceType<typeof App>["getName"];
   scrollToContent: InstanceType<typeof App>["scrollToContent"];
   registerAction: (action: Action) => void;
+  /**
+   * Executes a registered internal action by name (e.g. "group", "flipHorizontal",
+   * "copyStyles"). Lets a host app invoke Excalidraw's built-in actions directly
+   * without reimplementing their logic.
+   */
+  executeAction: (name: ActionName, value?: any) => void;
   refresh: InstanceType<typeof App>["refresh"];
   setToast: InstanceType<typeof App>["setToast"];
   addFiles: (data: BinaryFileData[]) => void;

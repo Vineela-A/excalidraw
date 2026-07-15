@@ -837,6 +837,35 @@ export const textWysiwyg = ({
       redrawTextBoundingBox(updateElement, container, app.scene);
     }
 
+    // Invariant guard: a container-bound label that still has text MUST stay
+    // referenced in its container's `boundElements`. Several submit paths above
+    // can drop it — `container` being momentarily unresolved, or the empty-text
+    // branch stripping the binding when `editable.value` is transiently empty on
+    // a wysiwyg desync even though the label element still holds its text. When
+    // the link is lost, the label renders via neither path (skipped as a
+    // standalone element because it has a containerId, and invisible via the
+    // container because getBoundTextElement finds no link), so it vanishes until
+    // a reload restores the persisted binding. Re-link here so it never happens.
+    const committedText = app.scene.getElement(element.id) as ExcalidrawTextElement | null;
+    if (
+      committedText &&
+      !committedText.isDeleted &&
+      committedText.text?.trim() &&
+      committedText.containerId
+    ) {
+      const boundContainer = app.scene.getElement(committedText.containerId);
+      if (
+        boundContainer &&
+        getBoundTextElementId(boundContainer) !== committedText.id
+      ) {
+        app.scene.mutateElement(boundContainer, {
+          boundElements: (boundContainer.boundElements || [])
+            .filter((b) => b.type !== "text")
+            .concat({ type: "text", id: committedText.id }),
+        });
+      }
+    }
+
     onSubmit({
       viaKeyboard: submittedViaKeyboard,
       nextOriginalText: editable.value,

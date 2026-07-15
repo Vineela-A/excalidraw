@@ -5951,29 +5951,36 @@ class App extends React.Component<AppProps, AppState> {
         const isDeleted = !nextOriginalText.trim();
         updateElement(nextOriginalText, isDeleted);
 
+        // Selecting the just-edited element/container is keyboard-submit only.
         if (!isDeleted && viaKeyboard) {
-          const elementIdToSelect = viaKeyboard ? (normalizedElement.containerId
-            ? normalizedElement.containerId
-            : normalizedElement.id) || (!isDeleted ? element.id : null) : null;
+          const elementIdToSelect =
+            (normalizedElement.containerId
+              ? normalizedElement.containerId
+              : normalizedElement.id) || element.id;
 
-        if (elementIdToSelect) {
-          // needed to ensure state is updated before "finalize" action
-          // that's invoked on keyboard-submit as well
-          // TODO either move this into finalize as well, or handle all state
-          // updates in one place, skipping finalize action
-          flushSync(() => {
-            this.setState((prevState) => ({
-              selectedElementIds: makeNextSelectedElementIds(
-                {
-                  ...prevState.selectedElementIds,
-                  [elementIdToSelect]: true,
-                },
-                prevState,
-              ),
-            }));
-          });
+          if (elementIdToSelect) {
+            // needed to ensure state is updated before "finalize" action
+            // that's invoked on keyboard-submit as well
+            flushSync(() => {
+              this.setState((prevState) => ({
+                selectedElementIds: makeNextSelectedElementIds(
+                  {
+                    ...prevState.selectedElementIds,
+                    [elementIdToSelect]: true,
+                  },
+                  prevState,
+                ),
+              }));
+            });
+          }
         }
 
+        // Everything below MUST run for ALL submits — keyboard AND blur/
+        // click-away — otherwise `editingTextElement` is never cleared on a
+        // blur submit, leaving the just-edited element permanently excluded
+        // from the render (it renders blank until reload). The fork had
+        // wrapped this cleanup inside the keyboard-only branch above, which
+        // is the cause of the "text disappears after editing" bug.
         if (isDeleted) {
           fixBindingsAfterDeletion(this.scene.getNonDeletedElements(), [
             element,
@@ -5996,7 +6003,6 @@ class App extends React.Component<AppProps, AppState> {
         }
 
         this.focusContainer();
-      }
       }),
       element: normalizedElement,
       excalidrawContainer: this.excalidrawContainerRef.current,

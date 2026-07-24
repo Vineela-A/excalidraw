@@ -15,6 +15,11 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20.x
+      # Activates the exact Yarn version pinned in package.json's
+      # "packageManager" field. Without this, the runner's preinstalled Yarn
+      # Classic (1.x) is used instead, which cannot resolve the workspace:*
+      # protocol this monorepo's internal packages depend on.
+      - run: corepack enable
       - name: Install and test
         run: |
           yarn install

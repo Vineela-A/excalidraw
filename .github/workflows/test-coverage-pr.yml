@@ -15,6 +15,9 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20.x"
+      # Activates the exact Yarn version pinned in package.json's
+      # "packageManager" field — see test.yml for why this is required.
+      - run: corepack enable
       - name: "Install Deps"
         run: yarn install
       - name: "Test Coverage"

@@ -16,6 +16,11 @@ jobs:
         uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20.x
+      # Activates the exact Yarn version pinned in package.json's
+      # "packageManager" field — see test.yml for why this is required.
+      # Runs from the repo root (before the working-directory step below)
+      # so Corepack finds the package.json that declares it.
+      - run: corepack enable
       - name: Install in packages/excalidraw
         run: yarn
         working-directory: packages/excalidraw

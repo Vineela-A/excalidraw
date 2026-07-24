@@ -65,10 +65,9 @@
   "dependencies": {
     "@excalidraw/common": "workspace:*",
     "@excalidraw/math": "workspace:*"
-  }
-  ,
+  },
   "devDependencies": {
-    "rimraf": "^4.0.0",
-    "@excalidraw/fractional-indexing": "workspace:*"
+    "@excalidraw/fractional-indexing": "workspace:*",
+    "rimraf": "^4.0.0"
   }
 }

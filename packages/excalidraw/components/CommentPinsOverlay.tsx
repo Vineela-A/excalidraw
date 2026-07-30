@@ -683,23 +683,29 @@ const CommentPinsOverlay: React.FC = () => {
           { sceneX: pin.sceneX, sceneY: pin.sceneY },
           appState,
         );
-        const left = vpX - appState.offsetLeft;
-        const top  = vpY - appState.offsetTop;
         const isOpen = openThreadFor === pin.id;
         const firstAuthor = pin.comments[0]?.author;
 
         const screenW     = typeof window !== "undefined" ? window.innerWidth : 1024;
-        const placeRight  = left < screenW / 2;
+        const placeRight  = vpX < screenW / 2;
         const popoverLeft = placeRight ? `${PIN_SIZE + 8}px` : `${-(460 + 8)}px`;
 
-        return (
+        // Portaled to <body> with viewport-fixed coordinates (vpX/vpY are
+        // already viewport-relative, see sceneCoordsToViewportCoords) rather
+        // than left as a position:absolute child of the .excalidraw
+        // container. That container has its own `z-index` (BoardCanvas.tsx),
+        // which makes it a stacking context — trapping this pin's z-index
+        // (however high) below any page-level UI with a higher stacking
+        // order, e.g. floating board widgets. Escaping to <body> lets the
+        // thread compete on the real, page-wide stacking order instead.
+        return createPortal(
           <div
             key={pin.id}
             data-comment-thread="1"
             style={{
-              position: "absolute",
-              left: `${left}px`,
-              top: `${top}px`,
+              position: "fixed",
+              left: `${vpX}px`,
+              top: `${vpY}px`,
               transform: "translate(-50%, -50%)",
               zIndex: 10000,
               pointerEvents: "auto",
@@ -753,7 +759,9 @@ const CommentPinsOverlay: React.FC = () => {
                 <ThreadPopover pin={pin} onClose={() => setOpenThreadFor(null)} />
               </div>
             )}
-          </div>
+          </div>,
+          document.body,
+          pin.id,
         );
       })}
     </>

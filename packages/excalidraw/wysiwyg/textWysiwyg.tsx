@@ -375,14 +375,18 @@ export const textWysiwyg = ({
       const font = getFontString(updatedTextElement);
       const angle = getTextElementAngle(updatedTextElement, container);
 
+      // These styles are in scene units -- the `scale(zoom)` in getTransform()
+      // converts them to screen size. Dividing by zoom here (as this used to)
+      // inflated the editor to 1/zoom of the note's height, so its
+      // vertically-centred text was drawn well below the note itself.
       const editorMaxHeight = isStickynote
-        ? (updatedTextElement.height - 8) / appState.zoom.value
+        ? updatedTextElement.height - 8
         : (appState.height - viewportY) / appState.zoom.value;
       Object.assign(editable.style, {
         font,
         lineHeight: updatedTextElement.lineHeight,
         width: `${width}px`,
-        height: `${isStickynote ? (updatedTextElement.height - 8) / appState.zoom.value : height}px`,
+        height: `${isStickynote ? updatedTextElement.height - 8 : height}px`,
         left: `${viewportX + (isStickynote ? 4 * appState.zoom.value : 0)}px`,
         top: `${viewportY + (isStickynote ? 4 * appState.zoom.value : 0)}px`,
         transform: getTransform(

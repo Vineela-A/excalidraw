@@ -150,6 +150,50 @@ function lightenColor(color: string | undefined, amount: number): string | undef
   return a === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
 }
 
+// Sibling of lightenColor, toward black instead of white -- used for the
+// stickynote curl's "paper underside" shading.
+function darkenColor(color: string | undefined, amount: number): string | undefined {
+  if (!color) return undefined;
+  color = color.trim();
+  let r = 0,
+    g = 0,
+    b = 0,
+    a = 1;
+
+  if (color.startsWith("#")) {
+    const hex = color.slice(1);
+    if (hex.length === 3) {
+      r = parseInt(hex[0] + hex[0], 16);
+      g = parseInt(hex[1] + hex[1], 16);
+      b = parseInt(hex[2] + hex[2], 16);
+    } else if (hex.length === 6) {
+      r = parseInt(hex.slice(0, 2), 16);
+      g = parseInt(hex.slice(2, 4), 16);
+      b = parseInt(hex.slice(4, 6), 16);
+    } else {
+      return undefined;
+    }
+  } else if (color.startsWith("rgb")) {
+    const parts = color.replace(/rgba?\(|\)/g, "").split(",").map(p => p.trim());
+    if (parts.length >= 3) {
+      r = parseInt(parts[0], 10);
+      g = parseInt(parts[1], 10);
+      b = parseInt(parts[2], 10);
+      if (parts.length === 4) a = parseFloat(parts[3]);
+    } else {
+      return undefined;
+    }
+  } else {
+    return undefined;
+  }
+
+  r = Math.round(r * (1 - amount));
+  g = Math.round(g * (1 - amount));
+  b = Math.round(b * (1 - amount));
+
+  return a === 1 ? `rgb(${r}, ${g}, ${b})` : `rgba(${r}, ${g}, ${b}, ${a})`;
+}
+
 export const getRenderOpacity = (
   element: ExcalidrawElement,
   containingFrame: ExcalidrawFrameLikeElement | null,
@@ -641,11 +685,14 @@ const drawElementOnCanvas = (
       context.restore();
 
       context.save();
-      context.fillStyle = sticky.backgroundColor;
       context.strokeStyle = sticky.strokeColor;
       context.globalAlpha = sticky.opacity / 100;
       context.lineJoin = "round";
       context.lineWidth = 0;
+
+      // Backing layer: the full rect in a darker shade of the note's own
+      // color, standing in for the paper's underside where the curl (below)
+      // lifts off the top layer -- Miro's signature peeled-corner look.
       context.beginPath();
       context.moveTo(0, corner);
       context.quadraticCurveTo(0, 0, corner, 0);
@@ -656,6 +703,23 @@ const drawElementOnCanvas = (
       context.lineTo(corner, element.height);
       context.quadraticCurveTo(0, element.height, 0, element.height - corner);
       context.closePath();
+      context.fillStyle = darkenColor(sticky.backgroundColor, 0.16) || sticky.backgroundColor;
+      context.fill();
+
+      // Top layer: same shape, but the bottom edge curls upward instead of
+      // running straight, revealing a sliver of the backing layer beneath.
+      const curlH = Math.max(6, Math.min(16, element.height * 0.05));
+      const curlPeakX = element.width * 0.6;
+      context.beginPath();
+      context.moveTo(0, corner);
+      context.quadraticCurveTo(0, 0, corner, 0);
+      context.lineTo(element.width - corner, 0);
+      context.quadraticCurveTo(element.width, 0, element.width, corner);
+      context.lineTo(element.width, element.height - curlH * 0.4);
+      context.quadraticCurveTo(curlPeakX, element.height - curlH * 1.6, curlPeakX * 0.35, element.height - curlH * 0.3);
+      context.quadraticCurveTo(corner, element.height - curlH * 0.1, 0, element.height - curlH * 0.6);
+      context.closePath();
+      context.fillStyle = sticky.backgroundColor;
       context.fill();
       context.restore();
 

@@ -94,6 +94,7 @@ import {
   AppEventBus,
   type EXPORT_IMAGE_TYPES,
   randomInteger,
+  randomId,
   CLASSES,
   Emitter,
   MINIMUM_ARROW_SIZE,
@@ -5948,7 +5949,12 @@ class App extends React.Component<AppProps, AppState> {
         }
       }),
       onSubmit: withBatchedUpdates(({ viaKeyboard, nextOriginalText }) => {
-        const isDeleted = !nextOriginalText.trim();
+        // An empty text element carries no meaning, so it's removed on submit.
+        // A stickynote is a real object in its own right though -- treating an
+        // empty one the same way deleted the whole note whenever the user
+        // clicked away without typing.
+        const isDeleted =
+          !nextOriginalText.trim() && !isStickynoteElement(element);
         updateElement(nextOriginalText, isDeleted);
 
         // Selecting the just-edited element/container is keyboard-submit only.
@@ -8405,27 +8411,13 @@ let existingTextElement: NonDeleted<ExcalidrawTextElement> | null =
       return;
     }
 
-    const clicklength = this.lastPointerDownEvent
-      ? event.timeStamp - this.lastPointerDownEvent.timeStamp
-      : 0;
-    if (
-      !this.state.viewModeEnabled &&
-      clicklength < 300 &&
-      this.state.activeTool.type === this.state.preferredSelectionTool.type
-    ) {
-      const hitEl = this.getElementAtPosition(scenePointer.x, scenePointer.y, {
-        includeBoundTextElement: true,
-      });
-      // @ts-ignore
-      if (hitEl && isStickynoteElement(hitEl)) {
-        this.startTextEditing({
-          sceneX: scenePointer.x,
-          sceneY: scenePointer.y,
-          autoEdit: true,
-        });
-        return;
-      }
-    }
+    // NOTE: a single click on a stickynote used to jump straight into text
+    // editing here. That swallowed the click, so a note could never simply be
+    // selected -- the selection toolbar never appeared, and a note in a
+    // "Sticky stack" couldn't be picked up. Editing is reached by
+    // double-click instead (handleCanvasDoubleClick -> startTextEditing,
+    // which resolves a hit stickynote), matching the element's own
+    // "Double-click to edit" hint and how selection behaves everywhere else.
 
     if (this.editorInterface.isTouchScreen) {
       const hitElement = this.getElementAtPosition(
@@ -10427,6 +10419,74 @@ let existingTextElement: NonDeleted<ExcalidrawTextElement> | null =
                 return;
               }
             }
+          }
+
+          // A "Sticky stack" acts as a dispenser: dragging one of its notes
+          // pulls a fresh standalone note off the pile and leaves the stack
+          // itself in place (drag the stack's label to move the whole pile).
+          // This reuses the alt-drag duplicate machinery below, where the
+          // copies become the dragged elements and the originals stay behind
+          // -- exactly the behaviour a dispenser needs.
+          const stackHitElement = pointerDownState.hit.element;
+          if (
+            !pointerDownState.hit.hasBeenDuplicated &&
+            stackHitElement &&
+            isStickynoteElement(stackHitElement) &&
+            (stackHitElement.groupIds ?? []).some((groupId) =>
+              String(groupId).startsWith("sstack_"),
+            )
+          ) {
+            pointerDownState.hit.hasBeenDuplicated = true;
+
+            // Build the dispensed note by hand rather than via
+            // duplicateElements(), which would expand the operation to every
+            // element sharing the stack's group and hand back the whole pile.
+            const dispensedNote = {
+              ...deepCopyElement(stackHitElement),
+              id: randomId(),
+              groupIds: [],
+              seed: randomInteger(),
+              versionNonce: randomInteger(),
+              index: null,
+            } as ExcalidrawElement;
+
+            const nextElements = [
+              ...this.scene.getElementsIncludingDeleted(),
+              dispensedNote,
+            ];
+
+            pointerDownState.originalElements.set(
+              dispensedNote.id,
+              deepCopyElement(dispensedNote),
+            );
+
+            flushSync(() => {
+              pointerDownState.hit.element = dispensedNote;
+              pointerDownState.hit.allHitElements = [dispensedNote];
+
+              // drag offset is measured from where the note was pulled off
+              pointerDownState.drag.origin = viewportCoordsToSceneCoords(
+                event,
+                this.state,
+              );
+
+              this.setState({
+                selectedElementIds: { [dispensedNote.id]: true },
+                selectedGroupIds: {},
+                editingGroupId: null,
+                // the drag continues on the dispensed note from the next
+                // pointermove onwards
+                selectedElementsAreBeingDragged: true,
+                selectionElement: null,
+              });
+
+              this.scene.replaceAllElements(nextElements);
+
+              this.maybeCacheVisibleGaps(event, [dispensedNote], true);
+              this.maybeCacheReferenceSnapPoints(event, [dispensedNote], true);
+            });
+
+            return;
           }
 
           // Snap cache *must* be synchronously popuplated before initial drag,

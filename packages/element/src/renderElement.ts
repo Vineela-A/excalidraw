@@ -444,7 +444,31 @@ const drawElementOnCanvas = (
       context.lineJoin = "round";
       context.lineCap = "round";
 
+      // Filled cards (rectangle/diamond/ellipse) get a soft drop shadow so
+      // they read as elevated surfaces on the canvas, matching how
+      // stickynote elements already render below. Outline-only shapes
+      // (transparent fill) and embeds keep their flat look — a shadow on
+      // an empty flowchart box or a live iframe would look wrong.
+      const canShadow =
+        (element.type === "rectangle" ||
+          element.type === "diamond" ||
+          element.type === "ellipse") &&
+        (element as { backgroundColor?: string }).backgroundColor !==
+          "transparent";
+
+      if (canShadow) {
+        context.save();
+        context.shadowColor = "rgba(0,0,0,0.12)";
+        context.shadowBlur = 8;
+        context.shadowOffsetX = 4;
+        context.shadowOffsetY = 6;
+      }
+
       rc.draw(ShapeCache.generateElementShape(element, renderConfig));
+
+      if (canShadow) {
+        context.restore();
+      }
       break;
     }
     case "arrow":

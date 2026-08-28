@@ -7,7 +7,12 @@ export const hasBackground = (type: ElementOrToolType) =>
   type === "ellipse" ||
   type === "diamond" ||
   type === "line" ||
-  type === "freedraw";
+  type === "freedraw" ||
+  // A stickynote's fill is its defining visual. Omitting it here made
+  // shouldTestInside() false for stickynotes, so a click on a note's
+  // interior fell through to whatever sat beneath it -- they could not be
+  // selected or dragged at all.
+  type === "stickynote";
 
 export const hasStrokeColor = (type: ElementOrToolType) =>
   type === "rectangle" ||

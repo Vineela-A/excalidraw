@@ -97,10 +97,29 @@ export const convertMermaidToExcalidraw = async ({
     const { elements, files = {} } = ret;
     setError(null);
 
+    // Force clean (non-sketchy) lines and a non-handwritten font on the
+    // converted elements. convertToExcalidrawElements otherwise leaves
+    // Excalidraw's own defaults (roughness: 1, Virgil/Excalifont), which
+    // don't match a host app's own flat-style board -- Verlo's board opens
+    // with roughness 0 for hand-drawn shapes, but that appState default
+    // only applies there, not to elements built programmatically here. This
+    // keeps the preview canvas and the elements actually inserted in sync
+    // (insertToEditor below reuses this same data.current.elements).
+    const SKETCH_FONTS = new Set([1, 5]); // Virgil, Excalifont
     data.current = {
       elements: convertToExcalidrawElements(elements, {
         regenerateIds: true,
-      }),
+      }).map((el) =>
+        el.roughness !== 0 || SKETCH_FONTS.has((el as { fontFamily?: number }).fontFamily ?? 0)
+          ? {
+              ...el,
+              roughness: 0,
+              ...(SKETCH_FONTS.has((el as { fontFamily?: number }).fontFamily ?? 0)
+                ? { fontFamily: 2 }
+                : {}),
+            }
+          : el,
+      ),
       files,
     };
 

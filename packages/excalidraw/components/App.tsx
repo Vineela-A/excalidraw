@@ -399,6 +399,7 @@ import {
 } from "../components/hyperlink/Hyperlink";
 
 import { Fonts } from "../fonts";
+import { getStickyCreationSize } from "../stickySize";
 import { editorJotaiStore, type WritableAtom } from "../editor-jotai";
 import { ImageSceneDataError } from "../errors";
 import {
@@ -9759,11 +9760,13 @@ let existingTextElement: NonDeleted<ExcalidrawTextElement> | null =
       const topLayerFrame = this.getTopLayerFrameAtSceneCoords({ x, y });
 
       const stickyFontFamily = FONT_FAMILY["Liberation Sans"];
+      const { size: stickySize, fontSize: stickyFontSize } =
+        getStickyCreationSize(this.state.zoom.value);
       const element = newStickynoteElement({
         x,
         y,
         text: "",
-        fontSize: 14,
+        fontSize: stickyFontSize,
         fontFamily: stickyFontFamily,
         textAlign: this.state.currentItemTextAlign,
         verticalAlign: DEFAULT_VERTICAL_ALIGN,
@@ -9776,8 +9779,8 @@ let existingTextElement: NonDeleted<ExcalidrawTextElement> | null =
         locked: false,
       });
 
-      element.width = 100;
-      element.height = 100;
+      element.width = stickySize;
+      element.height = stickySize;
 
       this.scene.insertElement(element);
       this.setState({ multiElement: null, newElement: element, editingTextElement: element });

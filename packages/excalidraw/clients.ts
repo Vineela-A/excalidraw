@@ -1,11 +1,14 @@
 import {
-  COLOR_CHARCOAL_BLACK,
   COLOR_VOICE_CALL,
   COLOR_WHITE,
   THEME,
   UserIdleState,
 } from "@excalidraw/common";
 
+import {
+  CURSOR_LABEL_TEXT_COLOR,
+  pickCursorLabelColor,
+} from "./cursorLabel";
 import { roundRect } from "./renderer/roundRect";
 
 import type { InteractiveCanvasRenderConfig } from "./scene/types";
@@ -42,6 +45,11 @@ export const getClientColor = (
 
   return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
 };
+
+export const getCursorLabelColor = (
+  socketId: SocketId,
+  collaborator: Collaborator | undefined,
+) => pickCursorLabelColor(hashToInteger(collaborator?.id || socketId));
 
 /**
  * returns first char, capitalized
@@ -90,7 +98,10 @@ export const renderRemoteCursors = ({
     y = Math.max(y, 0);
     y = Math.min(y, normalizedHeight - height);
 
-    const background = getClientColor(socketId, collaborator);
+    const { fill: background, accent } = getCursorLabelColor(
+      socketId,
+      collaborator,
+    );
 
     context.save();
     context.strokeStyle = background;
@@ -117,7 +128,7 @@ export const renderRemoteCursors = ({
       context.beginPath();
       context.arc(x, y, 15, 0, 2 * Math.PI, false);
       context.lineWidth = 1;
-      context.strokeStyle = background;
+      context.strokeStyle = accent;
       context.stroke();
       context.closePath();
     }
@@ -160,7 +171,7 @@ export const renderRemoteCursors = ({
 
     // Arrow
     context.fillStyle = background;
-    context.strokeStyle = background;
+    context.strokeStyle = accent;
     context.lineWidth = 2;
     context.lineJoin = "round";
     context.beginPath();
@@ -184,12 +195,12 @@ export const renderRemoteCursors = ({
     const username = renderConfig.remotePointerUsernames.get(socketId) || "";
 
     if (!isOutOfBounds && username) {
-      context.font = "600 12px sans-serif"; // font has to be set before context.measureText()
+      context.font = "600 13px sans-serif"; // font has to be set before context.measureText()
 
       const offsetX = (isSpeaking ? x + 0 : x) + width / 2;
       const offsetY = (isSpeaking ? y + 0 : y) + height + 2;
-      const paddingHorizontal = 5;
-      const paddingVertical = 3;
+      const paddingHorizontal = 10;
+      const paddingVertical = 4;
       const measure = context.measureText(username);
       const measureHeight =
         measure.actualBoundingBoxDescent + measure.actualBoundingBoxAscent;
@@ -201,22 +212,29 @@ export const renderRemoteCursors = ({
       const boxHeight = finalHeight + 2 + paddingVertical * 2 + 2;
       if (context.roundRect) {
         context.beginPath();
-        context.roundRect(boxX, boxY, boxWidth, boxHeight, 8);
+        context.roundRect(boxX, boxY, boxWidth, boxHeight, boxHeight / 2);
         context.fillStyle = background;
         context.fill();
-        context.strokeStyle = COLOR_WHITE;
+        context.lineWidth = 1.5;
+        context.strokeStyle = accent;
         context.stroke();
 
         if (isSpeaking) {
           context.beginPath();
-          context.roundRect(boxX - 2, boxY - 2, boxWidth + 4, boxHeight + 4, 8);
+          context.roundRect(
+            boxX - 2,
+            boxY - 2,
+            boxWidth + 4,
+            boxHeight + 4,
+            boxHeight / 2 + 2,
+          );
           context.strokeStyle = IS_SPEAKING_COLOR;
           context.stroke();
         }
       } else {
         roundRect(context, boxX, boxY, boxWidth, boxHeight, 8, COLOR_WHITE);
       }
-      context.fillStyle = COLOR_CHARCOAL_BLACK;
+      context.fillStyle = CURSOR_LABEL_TEXT_COLOR;
 
       context.fillText(
         username,

@@ -370,6 +370,7 @@ export interface AppState {
   currentItemOpacity: number;
   currentItemFontFamily: FontFamilyValues;
   currentItemFontSize: number;
+  currentItemStickyColor: string;
   currentItemTextAlign: TextAlign;
   currentItemStartArrowhead: Arrowhead | null;
   currentItemEndArrowhead: Arrowhead | null;

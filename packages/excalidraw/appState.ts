@@ -1,5 +1,6 @@
 import {
   COLOR_PALETTE,
+  COLOR_STICKYNOTE_YELLOW,
   ARROW_TYPE,
   DEFAULT_ELEMENT_PROPS,
   DEFAULT_FONT_FAMILY,
@@ -32,6 +33,7 @@ export const getDefaultAppState = (): Omit<
     currentItemFillStyle: DEFAULT_ELEMENT_PROPS.fillStyle,
     currentItemFontFamily: DEFAULT_FONT_FAMILY,
     currentItemFontSize: DEFAULT_FONT_SIZE,
+    currentItemStickyColor: COLOR_STICKYNOTE_YELLOW,
     currentItemOpacity: DEFAULT_ELEMENT_PROPS.opacity,
     currentItemRoughness: DEFAULT_ELEMENT_PROPS.roughness,
     currentItemStartArrowhead: null,
@@ -155,6 +157,7 @@ const APP_STATE_STORAGE_CONF = (<
   currentItemFillStyle: { browser: true, export: false, server: false },
   currentItemFontFamily: { browser: true, export: false, server: false },
   currentItemFontSize: { browser: true, export: false, server: false },
+  currentItemStickyColor: { browser: true, export: false, server: false },
   currentItemRoundness: {
     browser: true,
     export: false,
